@@ -1,0 +1,111 @@
+{
+  "overall_rmse": 0.992,
+  "overall_correlation": 0.4016,
+  "depth_metrics": [
+    {
+      "depth_m": 0.0,
+      "rmse": 1.373,
+      "mae": 1.082,
+      "bias": 0.054,
+      "correlation": 0.9416
+    },
+    {
+      "depth_m": 5.0,
+      "rmse": 1.382,
+      "mae": 1.092,
+      "bias": 0.132,
+      "correlation": 0.9692
+    },
+    {
+      "depth_m": 10.0,
+      "rmse": 1.438,
+      "mae": 1.151,
+      "bias": 0.094,
+      "correlation": 0.9652
+    },
+    {
+      "depth_m": 20.0,
+      "rmse": 0.69,
+      "mae": 0.526,
+      "bias": 0.033,
+      "correlation": 0.9463
+    },
+    {
+      "depth_m": 30.0,
+      "rmse": 1.861,
+      "mae": 1.482,
+      "bias": -0.25,
+      "correlation": -0.7725
+    },
+    {
+      "depth_m": 50.0,
+      "rmse": 1.149,
+      "mae": 0.819,
+      "bias": -0.196,
+      "correlation": 0.1375
+    },
+    {
+      "depth_m": 75.0,
+      "rmse": 0.865,
+      "mae": 0.586,
+      "bias": -0.085,
+      "correlation": 0.6894
+    },
+    {
+      "depth_m": 100.0,
+      "rmse": 0.707,
+      "mae": 0.526,
+      "bias": 0.001,
+      "correlation": 0.8119
+    },
+    {
+      "depth_m": 125.0,
+      "rmse": 0.662,
+      "mae": 0.486,
+      "bias": -0.011,
+      "correlation": 0.6124
+    },
+    {
+      "depth_m": 150.0,
+      "rmse": 0.816,
+      "mae": 0.651,
+      "bias": 0.086,
+      "correlation": 0.5307
+    },
+    {
+      "depth_m": 200.0,
+      "rmse": 0.73,
+      "mae": 0.443,
+      "bias": 0.161,
+      "correlation": 0.1554
+    },
+    {
+      "depth_m": 300.0,
+      "rmse": 0.449,
+      "mae": 0.348,
+      "bias": -0.057,
+      "correlation": -0.0193
+    },
+    {
+      "depth_m": 500.0,
+      "rmse": 0.687,
+      "mae": 0.378,
+      "bias": 0.043,
+      "correlation": -0.076
+    },
+    {
+      "depth_m": 700.0,
+      "rmse": 1.371,
+      "mae": 1.022,
+      "bias": 0.296,
+      "correlation": 0.1269
+    },
+    {
+      "depth_m": 1000.0,
+      "rmse": 0.702,
+      "mae": 0.516,
+      "bias": 0.146,
+      "correlation": 0.0048
+    }
+  ]
+}

@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OceanEmbed — Deep 3D Subsurface Ocean Intelligence Platform (SIH 26066)</title>
+  
+  <!-- Google Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Great+Vibes&family=Caveat:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
+  <!-- Chart.js & Plotly.js 3D -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+  
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+
+  <!-- Screen 1: Luxury 3D Spline Login Gateway -->
+  <div id="login-screen">
+    <!-- Theme Toggle on Login Screen -->
+    <button class="login-theme-toggle" onclick="toggleTheme()" title="Toggle Light / Dark Mode">
+      <i class="fa-solid fa-moon" id="login-theme-icon"></i>
+    </button>
+
+    <!-- 3D Spline Interactive Ocean Waves Background -->
+    <div class="spline-container">
+      <iframe id="spline-iframe" src="https://my.spline.design/ocean-v65TrYXSTK6XDNjAxmYKTf31/" frameborder="0" width="100%" height="100%" allow="autoplay; fullscreen"></iframe>
+      <div class="ocean-bg-anim">
+        <div class="ocean-wave wave1"></div>
+        <div class="ocean-wave wave2"></div>
+        <div class="ocean-wave wave3"></div>
+        <div class="ocean-depth-gradient"></div>
+      </div>
+    </div>
+
+    <!-- Glassmorphism Login Card with Left Hero & Mouse Tracking -->
+    <div class="login-card-wrapper">
+
+      <!-- Left Side Hero Section -->
+      <div class="login-hero-left">
+        <h1 class="hero-title">
+          <span class="cursive-hero-sub">Subsurface Ocean</span>
+          <span class="hero-main-text">3D Intelligence Platform</span>
+        </h1>
+        <p class="hero-description cursive-hero-desc">
+          Reconstructing deep ocean thermal profiles down to 1000m depth using 7-channel satellite observations (SST, SSS, SLA, ocean currents, surface winds) and deep OceanEmbedNet architecture.
+        </p>
+
+        <div class="hero-stats-grid">
+          <div class="hero-stat-card">
+            <i class="fa-solid fa-layer-group stat-icon"></i>
+            <div class="stat-info">
+              <span class="stat-value">0 - 1000m</span>
+              <span class="stat-label cursive-stat">Depth Resolution</span>
+            </div>
+          </div>
+
+          <div class="hero-stat-card">
+            <i class="fa-solid fa-bullseye stat-icon"></i>
+            <div class="stat-info">
+              <span class="stat-value">0.99°C</span>
+              <span class="stat-label cursive-stat">Independent RMSE</span>
+            </div>
+          </div>
+
+          <div class="hero-stat-card">
+            <i class="fa-solid fa-calendar-day stat-icon"></i>
+            <div class="stat-info">
+              <span class="stat-value">0.25° Daily</span>
+              <span class="stat-label cursive-stat">Cadence & Grid</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Side Login Form Card -->
+      <div class="login-card" id="interactive-login-card">
+        <div class="login-brand">
+          <div class="login-logo-glow"></div>
+          <div class="login-logo"><i class="fa-solid fa-gem"></i></div>
+          <h1 class="cursive-welcome">Welcome to</h1>
+          <h2>OceanEmbed</h2>
+          <p class="login-subtitle">Deep OceanEmbedNet 3D Ocean Intelligence</p>
+          <p class="cursive-tagline">"Bridging Satellite Surface Data to 1000m Deep Ocean Physics"</p>
+        </div>
+
+        <form id="login-form" onsubmit="handleLogin(event)">
+          <div class="input-group">
+            <label><i class="fa-solid fa-user"></i> Username / Operator ID</label>
+            <input type="text" id="login-username" value="admin" placeholder="Enter username" required>
+          </div>
+
+          <div class="input-group">
+            <label><i class="fa-solid fa-key"></i> Access Key</label>
+            <input type="password" id="login-password" value="••••••••" placeholder="Enter password" required>
+          </div>
+
+          <div class="login-actions">
+            <button type="submit" class="btn-login" id="btn-login-interactive">
+              <span class="btn-text"><i class="fa-solid fa-shield-halved"></i> Launch Platform</span>
+              <span class="btn-ripple"></span>
+            </button>
+          </div>
+        </form>
+
+        <div class="login-footer-hint">
+          <span><i class="fa-solid fa-lock"></i> Secured Workstation Access</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Screen 2: Main Workstation App -->
+  <div id="app-screen" class="hidden">
+    <div class="app-container">
+      <!-- Luxury Top Navbar with Page Navigation -->
+      <header class="navbar">
+        <div class="brand">
+          <div class="logo-icon"><i class="fa-solid fa-water"></i></div>
+          <div class="brand-text">
+            <h1>OceanEmbed <span class="version-tag">OceanEmbedNet 7-Ch Real-Time</span></h1>
+          </div>
+        </div>
+
+        <!-- Page Navigation Tabs -->
+        <nav class="page-nav">
+          <button class="nav-link active" id="nav-btn-dashboard" onclick="showPage('dashboard-page')">
+            <i class="fa-solid fa-gauge-high"></i> Dashboard
+          </button>
+          <button class="nav-link" id="nav-btn-studio" onclick="showPage('studio-3d-page')">
+            <i class="fa-solid fa-cube"></i> Dedicated 3D Studio
+          </button>
+        </nav>
+        
+        <div class="nav-metrics">
+          <div class="metric-chip">
+            <span class="chip-label">RMSE</span>
+            <span class="chip-value highlight" id="nav-rmse">0.992 °C</span>
+          </div>
+          <div class="metric-chip">
+            <span class="chip-label">Correlation r</span>
+            <span class="chip-value" id="nav-corr">0.4016</span>
+          </div>
+          <div class="metric-chip">
+            <span class="chip-label">Mean Bias</span>
+            <span class="chip-value" id="nav-bias">-- °C</span>
+          </div>
+          <div class="metric-chip">
+            <span class="chip-label">vs SST Baseline</span>
+            <span class="chip-value badge-success" id="nav-impr">34.0% ↓</span>
+          </div>
+          <!-- Dataset Mode Badge -->
+          <div class="metric-chip dataset-mode-chip" id="nav-dataset-badge" title="Active Satellite Dataset">
+            <span class="chip-label">DATASET</span>
+            <span class="chip-value highlight" id="nav-dataset-name"><i class="fa-solid fa-satellite"></i> CMEMS 2018 (182 Days)</span>
+          </div>
+          <!-- Theme Toggle Button -->
+          <button class="btn-theme-toggle" id="btn-theme-toggle" onclick="toggleTheme()" title="Toggle Light / Dark Mode">
+            <i class="fa-solid fa-moon" id="theme-toggle-icon"></i>
+            <span class="theme-label" id="theme-toggle-text">Dark</span>
+          </button>
+          <button class="btn-logout" onclick="handleLogout()" title="Logout Session"><i class="fa-solid fa-right-from-bracket"></i></button>
+        </div>
+      </header>
+
+      <!-- PAGE 1: Main Dashboard -->
+      <div id="dashboard-page" class="page-view active">
+        <main class="dashboard-grid">
+          <!-- Left Panel: Controls -->
+          <aside class="sidebar-panel">
+            <div class="card control-card">
+              <div class="card-header">
+                <h3><i class="fa-solid fa-sliders"></i> Coordinates & Controls</h3>
+              </div>
+              <div class="card-body">
+                <div class="form-group dataset-group">
+                  <label><i class="fa-solid fa-database"></i> Dataset Source</label>
+                  <select id="select-dataset-mode" class="dataset-select" onchange="changeDatasetMode(this.value)">
+                    <option value="2018" selected>Historical CMEMS Benchmark (2018 - 182 Days)</option>
+                    <option value="2024">Operational Real-Time PoC (2024 - 10 Days)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label><i class="fa-solid fa-location-crosshairs"></i> Latitude (°N)</label>
+                  <input type="number" id="input-lat" value="15.0" step="0.25" min="5" max="30">
+                </div>
+                <div class="form-group">
+                  <label><i class="fa-solid fa-location-crosshairs"></i> Longitude (°E)</label>
+                  <input type="number" id="input-lon" value="65.0" step="0.25" min="45" max="105">
+                </div>
+                <div class="form-group">
+                  <label><i class="fa-solid fa-calendar-days"></i> Observation Date</label>
+                  <select id="select-date">
+                    <!-- Dynamically populated -->
+                  </select>
+                </div>
+                
+                <div class="quick-presets">
+                  <span class="preset-label">Quick Regions:</span>
+                  <button class="btn-chip" onclick="setCoordinates(15.5, 65.2)">Arabian Sea</button>
+                  <button class="btn-chip" onclick="setCoordinates(14.0, 88.0)">Bay of Bengal</button>
+                  <button class="btn-chip" onclick="setCoordinates(6.5, 78.5)">Equatorial NIO</button>
+                </div>
+                
+                <button class="btn-primary" id="btn-predict"><i class="fa-solid fa-bolt"></i> Reconstruct Profile</button>
+              </div>
+            </div>
+
+            <!-- Surface Telemetry (7 Satellite Variables) -->
+            <div class="card location-card">
+              <div class="card-header">
+                <h3><i class="fa-solid fa-satellite"></i> 7-Channel Satellite Observations (0.25°)</h3>
+              </div>
+              <div class="card-body location-stats">
+                <div class="stat-box stat-box-sst">
+                  <span class="stat-title"><i class="fa-solid fa-temperature-high"></i> Sea Surface Temp (SST)</span>
+                  <span class="stat-num" id="val-sst">-- °C</span>
+                </div>
+                <div class="stat-box stat-box-sss">
+                  <span class="stat-title"><i class="fa-solid fa-droplet"></i> Sea Surface Salinity (SSS)</span>
+                  <span class="stat-num" id="val-sss">-- PSU</span>
+                </div>
+                <div class="stat-box stat-box-ssh">
+                  <span class="stat-title"><i class="fa-solid fa-water"></i> Sea Level Anomaly (SSH)</span>
+                  <span class="stat-num" id="val-ssh">-- m</span>
+                </div>
+                <div class="stat-box stat-box-uv">
+                  <span class="stat-title"><i class="fa-solid fa-compass"></i> Ocean Currents (U, V)</span>
+                  <span class="stat-num" id="val-uv">-- m/s</span>
+                </div>
+                <div class="stat-box stat-box-wind">
+                  <span class="stat-title"><i class="fa-solid fa-wind"></i> 10m Surface Wind (U, V)</span>
+                  <span class="stat-num" id="val-wind">-- m/s</span>
+                </div>
+                <div class="stat-box stat-box-depth">
+                  <span class="stat-title"><i class="fa-solid fa-arrows-up-down"></i> Max Valid Depth</span>
+                  <span class="stat-num" id="val-depth">-- m</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- ARGO Validation -->
+            <div class="card argo-card">
+              <div class="card-header">
+                <h3><i class="fa-solid fa-anchor"></i> INCOIS ARGO Float Ground Truth</h3>
+              </div>
+              <div class="card-body">
+                <div class="form-group">
+                  <label>INCOIS In-Situ ARGO Float</label>
+                  <select id="select-argo" onchange="loadArgoValidation()">
+                    <option value="ARGO_INCOIS_001">ARGO INCOIS 001 (Central Arabian Sea)</option>
+                    <option value="ARGO_INCOIS_002">ARGO INCOIS 002 (Western Arabian Sea)</option>
+                    <option value="ARGO_INCOIS_003">ARGO INCOIS 003 (Eastern Arabian Sea)</option>
+                    <option value="ARGO_INCOIS_004">ARGO INCOIS 004 (Andaman Sea / BoB)</option>
+                    <option value="ARGO_INCOIS_005">ARGO INCOIS 005 (Central Bay of Bengal)</option>
+                    <option value="ARGO_INCOIS_006">ARGO INCOIS 006 (Southern Bay of Bengal)</option>
+                  </select>
+                </div>
+                <div class="argo-stats-mini">
+                  <div><span>Float RMSE:</span> <strong id="argo-rmse">-- °C</strong></div>
+                  <div><span>Correlation:</span> <strong id="argo-corr">--</strong></div>
+                  <div><span>Float Bias:</span> <strong id="argo-bias">-- °C</strong></div>
+                </div>
+                <div class="argo-source-label" id="argo-source">INCOIS ARGO In-Situ Float Network</div>
+              </div>
+            </div>
+          </aside>
+
+          <!-- Right Panel: Map & Profile -->
+          <section class="main-content-panel">
+            <div class="card map-card">
+              <div class="card-header">
+                <div class="header-title">
+                  <h3><i class="fa-solid fa-earth-asia"></i> North Indian Ocean Observation Map</h3>
+                  <span class="subtitle">Click anywhere on the ocean to analyze subsurface thermal structure</span>
+                </div>
+              </div>
+              <div class="card-body map-container">
+                <div id="ocean-map"></div>
+              </div>
+            </div>
+
+            <!-- Profile & Analytics Tabs -->
+            <div class="card chart-card">
+              <div class="card-header tabs-header">
+                <div class="tabs">
+                  <button class="tab-btn active" onclick="switchTab('profile-tab', this)"><i class="fa-solid fa-chart-line"></i> Vertical Profile (0m– 1000m)</button>
+                  <button class="tab-btn" onclick="switchTab('transect-tab', this)"><i class="fa-solid fa-layer-group"></i> Ocean Depth Section</button>
+                  <button class="tab-btn" onclick="switchTab('validation-tab', this)"><i class="fa-solid fa-chart-bar"></i> Depth-Wise Validation</button>
+                  <button class="tab-btn" onclick="switchTab('embedding-tab', this)"><i class="fa-solid fa-brain"></i> OceanEmbedNet Embeddings</button>
+                  <button class="tab-btn" onclick="switchTab('agro-tab', this)"><i class="fa-solid fa-seedling"></i> Agro Analytics</button>
+                </div>
+                <button class="btn-sm btn-outline" onclick="exportData()"><i class="fa-solid fa-download"></i> Export Data</button>
+              </div>
+              
+              <div class="card-body tab-content-container">
+                <!-- Tab 1: Vertical Profile Chart -->
+                <div id="profile-tab" class="tab-pane active">
+                  <div class="chart-wrapper">
+                    <canvas id="depthProfileChart"></canvas>
+                  </div>
+                </div>
+
+                <!-- Tab 2: Ocean Depth Section -->
+                <div id="transect-tab" class="tab-pane">
+                  <div class="transect-controls">
+                    <label>Transect Cut along:</label>
+                    <select id="transect-axis" onchange="onTransectAxisChange()">
+                      <option value="lat">Latitude Fix (West→East Longitude)</option>
+                      <option value="lon">Longitude Fix (South→North Latitude)</option>
+                    </select>
+                    <span id="transect-location-label" class="badge">Latitude 15.00°N</span>
+                  </div>
+
+                  <!-- Slider Row -->
+                  <div class="slider-row">
+                    <span class="slider-label" id="slider-min-label">45°E</span>
+                    <input type="range" id="transect-slider"
+                      min="5" max="30" step="0.25" value="15"
+                      oninput="onTransectSlide(this.value)"
+                      class="transect-range-slider">
+                    <span class="slider-label" id="slider-max-label">30°N</span>
+                    <span class="slider-current" id="slider-current-val">15.00°N</span>
+                  </div>
+
+                  <div class="transect-container" id="transect-view">
+                    <!-- Plotly Heatmap -->
+                  </div>
+                </div>
+
+                <!-- Tab 3: Depth-Wise Validation -->
+                <div id="validation-tab" class="tab-pane">
+                  <div class="validation-panel">
+                    <div class="validation-header">
+                      <h4><i class="fa-solid fa-chart-bar"></i> Depth-Wise Skill Metrics — OceanEmbedNet vs GLORYS12V1</h4>
+                      <p class="validation-subtitle">RMSE, Bias &amp; Correlation at each of the 15 standard depth levels (independent INCOIS ARGO evaluation)</p>
+                    </div>
+                    <!-- Summary banner -->
+                    <div class="validation-summary-row">
+                      <div class="vsumm-card">
+                        <span class="vsumm-label">Overall RMSE</span>
+                        <span class="vsumm-val" id="val-overall-rmse">0.992 °C</span>
+                      </div>
+                      <div class="vsumm-card">
+                        <span class="vsumm-label">Overall Correlation</span>
+                        <span class="vsumm-val" id="val-overall-corr">0.4016</span>
+                      </div>
+                      <div class="vsumm-card">
+                        <span class="vsumm-label">Mean Bias</span>
+                        <span class="vsumm-val" id="val-overall-bias">-- °C</span>
+                      </div>
+                      <div class="vsumm-card">
+                        <span class="vsumm-label">Best Layer</span>
+                        <span class="vsumm-val" id="val-best-layer">300m</span>
+                      </div>
+                    </div>
+                    <!-- Two charts side by side -->
+                    <div class="validation-charts-row">
+                      <div class="vchart-box">
+                        <h5>RMSE by Depth Level (°C)</h5>
+                        <canvas id="depthRmseChart"></canvas>
+                      </div>
+                      <div class="vchart-box">
+                        <h5>Correlation (r) by Depth Level</h5>
+                        <canvas id="depthCorrChart"></canvas>
+                      </div>
+                    </div>
+                    <!-- Detailed table -->
+                    <div class="validation-table-wrapper">
+                      <table class="depth-metrics-table" id="depth-metrics-table">
+                        <thead>
+                          <tr>
+                            <th>Depth (m)</th>
+                            <th>RMSE (°C)</th>
+                            <th>MAE (°C)</th>
+                            <th>Bias (°C)</th>
+                            <th>Correlation (r)</th>
+                            <th>Skill</th>
+                          </tr>
+                        </thead>
+                        <tbody id="depth-metrics-tbody">
+                          <!-- Populated by JS -->
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Tab 4: Embeddings -->
+                <div id="embedding-tab" class="tab-pane">
+                  <div class="embedding-info">
+                    <h4><i class="fa-solid fa-brain"></i> OceanEmbedNet Latent Surface Embeddings</h4>
+                    <p>Learned 64-channel spatial representations from the <strong>OceanSurfaceEncoder</strong>. Showing top-2 principal components of the latent space — these capture thermocline depth patterns and mesoscale eddy signatures.</p>
+                  </div>
+                  <div class="embedding-grid">
+                    <div class="embedding-box">
+                      <h5>Embedding Component 1 (Primary Thermal Pattern)</h5>
+                      <div class="heatmap-canvas" id="embedding-c1"></div>
+                    </div>
+                    <div class="embedding-box">
+                      <h5>Embedding Component 2 (Ocean Dynamics Pattern)</h5>
+                      <div class="heatmap-canvas" id="embedding-c2"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Tab 5: Agro Analytics (SST Impact on Agriculture / Monsoon) -->
+                <div id="agro-tab" class="tab-pane">
+                  <div class="agro-header">
+                    <div class="agro-title-row">
+                      <h4><i class="fa-solid fa-seedling"></i> Ocean-Agro Impact Analytics — North Indian Ocean Basin</h4>
+                      <span class="agro-badge">Synthetic Regional Analysis</span>
+                    </div>
+                    <p class="agro-subtitle">Sea Surface Temperature anomalies from the North Indian Ocean directly influence Indian monsoon onset, soil moisture patterns, and Kharif/Rabi crop yield forecasts across major agricultural zones.</p>
+                  </div>
+
+                  <!-- KPI Row -->
+                  <div class="agro-kpi-row">
+                    <div class="agro-kpi" id="agro-kpi-sst">
+                      <i class="fa-solid fa-temperature-high"></i>
+                      <div>
+                        <span class="agro-kpi-label">Basin SST Anomaly</span>
+                        <span class="agro-kpi-val" id="agro-sst-anomaly">+0.42 °C</span>
+                      </div>
+                    </div>
+                    <div class="agro-kpi" id="agro-kpi-monsoon">
+                      <i class="fa-solid fa-cloud-rain"></i>
+                      <div>
+                        <span class="agro-kpi-label">Monsoon Onset Shift</span>
+                        <span class="agro-kpi-val" id="agro-monsoon-shift">−2.3 days</span>
+                      </div>
+                    </div>
+                    <div class="agro-kpi" id="agro-kpi-ndvi">
+                      <i class="fa-solid fa-leaf"></i>
+                      <div>
+                        <span class="agro-kpi-label">Regional NDVI Index</span>
+                        <span class="agro-kpi-val" id="agro-ndvi">0.61</span>
+                      </div>
+                    </div>
+                    <div class="agro-kpi" id="agro-kpi-crop">
+                      <i class="fa-solid fa-wheat-awn"></i>
+                      <div>
+                        <span class="agro-kpi-label">Kharif Yield Forecast</span>
+                        <span class="agro-kpi-val" id="agro-yield">+3.1%</span>
+                      </div>
+                    </div>
+                    <div class="agro-kpi" id="agro-kpi-moisture">
+                      <i class="fa-solid fa-droplet"></i>
+                      <div>
+                        <span class="agro-kpi-label">Soil Moisture Index</span>
+                        <span class="agro-kpi-val" id="agro-moisture">0.74</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Charts Row -->
+                  <div class="agro-charts-grid">
+                    <div class="agro-chart-box">
+                      <h5><i class="fa-solid fa-temperature-arrow-up"></i> SST Anomaly vs Monsoon Rainfall (Monthly)</h5>
+                      <canvas id="agro-sst-monsoon-chart"></canvas>
+                    </div>
+                    <div class="agro-chart-box">
+                      <h5><i class="fa-solid fa-wheat-awn"></i> Crop Yield Impact Forecast by Zone</h5>
+                      <canvas id="agro-crop-yield-chart"></canvas>
+                    </div>
+                    <div class="agro-chart-box">
+                      <h5><i class="fa-solid fa-droplet"></i> Soil Moisture vs Ocean Heat Content</h5>
+                      <canvas id="agro-moisture-chart"></canvas>
+                    </div>
+                    <div class="agro-chart-box">
+                      <h5><i class="fa-solid fa-leaf"></i> NDVI Trend — Arabian Sea Coastal Zones</h5>
+                      <canvas id="agro-ndvi-chart"></canvas>
+                    </div>
+                  </div>
+
+                  <!-- Zone table -->
+                  <div class="agro-zone-table-wrap">
+                    <h5><i class="fa-solid fa-table"></i> Regional Agricultural Zone Impact Summary</h5>
+                    <table class="agro-zone-table">
+                      <thead>
+                        <tr>
+                          <th>Zone</th>
+                          <th>SST Anomaly (°C)</th>
+                          <th>Rainfall Deviation</th>
+                          <th>NDVI</th>
+                          <th>Yield Forecast</th>
+                          <th>Risk Level</th>
+                        </tr>
+                      </thead>
+                      <tbody id="agro-zone-tbody"></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+
+
+      <!-- PAGE 2: Dedicated Separate 3D Ocean Studio Page -->
+      <div id="studio-3d-page" class="page-view hidden">
+        <div class="studio-3d-container">
+          <!-- 3D Studio Top Header Bar -->
+          <div class="studio-header">
+            <div class="studio-title">
+              <h2><i class="fa-solid fa-cube"></i> OceanEmbed 3D Volumetric Reconstruction Studio</h2>
+              <p>OceanEmbedNet 7-Channel — Subsurface Ocean Temperature Volume (Lon × Depth × Temp °C) | North Indian Ocean Basin</p>
+            </div>
+          </div>
+
+          <!-- Studio Controls Row -->
+          <div class="studio-controls-row">
+            <div class="studio-control-item">
+              <label><i class="fa-solid fa-database"></i> Dataset Source</label>
+              <select id="studio-dataset-mode" onchange="changeDatasetMode(this.value)">
+                <option value="2018" selected>Historical CMEMS (2018)</option>
+                <option value="2024">Operational PoC (2024)</option>
+              </select>
+            </div>
+            <div class="studio-control-item">
+              <label><i class="fa-solid fa-calendar-days"></i> Observation Date</label>
+              <select id="studio-date" onchange="syncDateFromStudio(this.value)">
+                <!-- Populated from API -->
+              </select>
+            </div>
+            <div class="studio-control-item">
+              <label><i class="fa-solid fa-cubes"></i> 3D Reconstruction Mode</label>
+              <select id="studio-mode" onchange="renderStudio3D()">
+                <option value="curtains">Orthogonal Curtains (SST Surface + Depth Curtains)</option>
+                <option value="surface">0.25° Transect Thermal Surface (Depth × Coordinate)</option>
+                <option value="d20">D20 Thermocline Topography (20°C Isotherm Depth)</option>
+              </select>
+            </div>
+            <div class="studio-control-item">
+              <label><i class="fa-solid fa-location-crosshairs"></i> Latitude (°N)</label>
+              <input type="number" id="studio-lat" value="15.0" min="5" max="30" step="0.25" onchange="renderStudio3D()">
+            </div>
+            <div class="studio-control-item">
+              <label><i class="fa-solid fa-location-crosshairs"></i> Longitude (°E)</label>
+              <input type="number" id="studio-lon" value="65.0" min="45" max="105" step="0.25" onchange="renderStudio3D()">
+            </div>
+            <div class="studio-control-item">
+              <label><i class="fa-solid fa-layer-group"></i> Transect Cut</label>
+              <select id="studio-axis" onchange="renderStudio3D()">
+                <option value="lat">Latitude Fix (West–East: Arabian Sea & BoB)</option>
+                <option value="lon">Longitude Fix (South–North)</option>
+              </select>
+            </div>
+            <div class="studio-control-item">
+              <label><i class="fa-solid fa-palette"></i> Palette</label>
+              <select id="studio-colorscale" onchange="renderStudio3D()">
+                <option value="Thermal">Thermal (Oceanographic)</option>
+                <option value="Jet">Jet (Classic Scientific)</option>
+                <option value="Viridis">Viridis</option>
+                <option value="Plasma">Plasma</option>
+                <option value="RdBu">RdBu (Diverging)</option>
+              </select>
+            </div>
+            <button class="btn-studio-render" onclick="renderStudio3D()"><i class="fa-solid fa-rotate"></i> Re-Render</button>
+          </div>
+
+          <!-- Quick Basin Targets -->
+          <div class="studio-presets-row">
+            <span class="preset-title"><i class="fa-solid fa-compass"></i> Quick Basin Targets (0.25°):</span>
+            <button class="btn-studio-chip" onclick="jumpStudioRegion(16.5, 66.25, 'Central Arabian Sea')">Central Arabian Sea (16.5°N, 66.25°E)</button>
+            <button class="btn-studio-chip" onclick="jumpStudioRegion(15.0, 90.25, 'Central Bay of Bengal')">Central Bay of Bengal (15°N, 90.25°E)</button>
+            <button class="btn-studio-chip" onclick="jumpStudioRegion(7.0, 78.0, 'Equatorial NIO')">Equatorial NIO (7°N, 78°E)</button>
+            <button class="btn-studio-chip" onclick="jumpStudioRegion(13.5, 95.5, 'Andaman Sea')">Andaman Sea (13.5°N, 95.5°E)</button>
+          </div>
+
+          <!-- Studio Body: left stats + right 3D canvas -->
+          <div class="studio-body-flex">
+            <!-- Left: Key metrics & Problem Statement Specifications -->
+            <div class="studio-stats-sidebar">
+              <div class="studio-stat-block">
+                <i class="fa-solid fa-thermometer-half"></i>
+                <div>
+                  <span class="ssb-label">Surface SST</span>
+                  <span class="ssb-val" id="studio-sst">-- °C</span>
+                </div>
+              </div>
+              <div class="studio-stat-block">
+                <i class="fa-solid fa-droplet"></i>
+                <div>
+                  <span class="ssb-label">Surface SSS</span>
+                  <span class="ssb-val" id="studio-sss">-- PSU</span>
+                </div>
+              </div>
+              <div class="studio-stat-block">
+                <i class="fa-solid fa-water"></i>
+                <div>
+                  <span class="ssb-label">SSH Anomaly</span>
+                  <span class="ssb-val" id="studio-ssh">-- m</span>
+                </div>
+              </div>
+              <div class="studio-stat-block">
+                <i class="fa-solid fa-arrow-trend-down"></i>
+                <div>
+                  <span class="ssb-label">Thermocline (D20)</span>
+                  <span class="ssb-val" id="studio-thermo">~92m</span>
+                </div>
+              </div>
+              <div class="studio-stat-block">
+                <i class="fa-solid fa-arrows-up-down"></i>
+                <div>
+                  <span class="ssb-label">Deep Temp (1000m)</span>
+                  <span class="ssb-val" id="studio-deep">~5.8 °C</span>
+                </div>
+              </div>
+
+              <!-- Problem Statement Specifications Card -->
+              <div class="studio-specs-card">
+                <h5><i class="fa-solid fa-bullseye"></i> Problem Statement (SIH 26066)</h5>
+                <ul class="studio-specs-list">
+                  <li><span>Resolution:</span> <strong>0.25° × 0.25° Daily</strong></li>
+                  <li><span>Domain:</span> <strong>5°N–30°N, 45°E–105°E</strong></li>
+                  <li><span>Channels:</span> <strong>7 Surface Variables</strong></li>
+                  <li><span>Depths:</span> <strong>15 Levels (0–1000m)</strong></li>
+                  <li><span>Embeddings:</span> <strong>64-ch Spatial Latent</strong></li>
+                  <li><span>Benchmark:</span> <strong>INCOIS ARGO Array</strong></li>
+                </ul>
+              </div>
+
+              <!-- Color legend -->
+              <div class="studio-temp-legend">
+                <span class="legend-title">Temp. Scale (°C)</span>
+                <div class="legend-gradient"></div>
+                <div class="legend-labels">
+                  <span>30°C</span>
+                  <span>22°C</span>
+                  <span>14°C</span>
+                  <span>4°C</span>
+                </div>
+              </div>
+              <!-- Depth info -->
+              <div class="studio-depth-info">
+                <div class="depth-layer"><span class="dl-col" style="background:#ef4444"></span><span>0–30m Epipelagic</span></div>
+                <div class="depth-layer"><span class="dl-col" style="background:#f97316"></span><span>30–150m Thermocline</span></div>
+                <div class="depth-layer"><span class="dl-col" style="background:#0284c7"></span><span>150–500m Intermediate</span></div>
+                <div class="depth-layer"><span class="dl-col" style="background:#1e3a5f"></span><span>500–1000m Deep Ocean</span></div>
+              </div>
+            </div>
+
+            <!-- Right: Fullscreen Interactive 3D Plotly Volumetric Canvas -->
+            <div class="studio-canvas-wrapper">
+              <div id="plotly-3d-studio-container" style="width:100%; height:100%;"></div>
+            </div>
+          </div>
+
+          <!-- 3D Studio Footer Info Bar -->
+          <div class="studio-footer-drawer">
+            <div class="drawer-stat">
+              <span class="d-label">Domain:</span>
+              <strong class="d-val">North Indian Ocean (5°N–30°N, 45°E–105°E)</strong>
+            </div>
+            <div class="drawer-stat">
+              <span class="d-label">Depth:</span>
+              <strong class="d-val">0–1000m — 15 Standard Levels</strong>
+            </div>
+            <div class="drawer-stat">
+              <span class="d-label">Model:</span>
+              <strong class="d-val highlight">OceanEmbedNet 7-ch (SIH 26066)</strong>
+            </div>
+            <div class="drawer-stat">
+              <span class="d-label">Data:</span>
+              <strong class="d-val">Copernicus GLORYS12V1 — 0.25°/day</strong>
+            </div>
+            <div class="drawer-stat">
+              <span class="d-label">RMSE:</span>
+              <strong class="d-val highlight">0.992°C vs GLORYS truth</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <footer class="footer">
+        <p>OceanEmbed Intelligence Platform &copy; 2026</p>
+      </footer>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
