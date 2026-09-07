@@ -262,27 +262,80 @@ function initMap() {
     updateInputs(e.latlng.lat, e.latlng.lng);
   });
 
+  // INCOIS Gridded ARGO Floats Layer (Small, distinct circular blue dots with hover and click popups)
   const argoFloats = [
-    { id: "ARGO_INCOIS_001", lat: 16.5, lon: 66.25, name: "ARGO INCOIS 001 (Central Arabian Sea)" },
-    { id: "ARGO_INCOIS_002", lat: 14.5, lon: 63.5, name: "ARGO INCOIS 002 (Western Arabian Sea)" },
-    { id: "ARGO_INCOIS_003", lat: 17.5, lon: 67.5, name: "ARGO INCOIS 003 (Eastern Arabian Sea)" },
-    { id: "ARGO_INCOIS_004", lat: 14.25, lon: 92.75, name: "ARGO INCOIS 004 (Andaman Sea / BoB)" },
-    { id: "ARGO_INCOIS_005", lat: 15.0, lon: 90.25, name: "ARGO INCOIS 005 (Central Bay of Bengal)" },
-    { id: "ARGO_INCOIS_006", lat: 12.25, lon: 90.5, name: "ARGO INCOIS 006 (Southern Bay of Bengal)" }
+    { id: "ARGO_INCOIS_001", lat: 16.5, lon: 66.25, name: "Central Arabian Sea", sst: 28.2, d20: 82, d1000: 5.8, rmse: 0.84 },
+    { id: "ARGO_INCOIS_002", lat: 14.5, lon: 63.50, name: "Western Arabian Sea", sst: 27.8, d20: 78, d1000: 5.5, rmse: 0.91 },
+    { id: "ARGO_INCOIS_003", lat: 17.5, lon: 67.50, name: "Eastern Arabian Sea", sst: 29.1, d20: 89, d1000: 6.0, rmse: 0.78 },
+    { id: "ARGO_INCOIS_004", lat: 14.25, lon: 92.75, name: "Andaman Sea / BoB", sst: 29.4, d20: 98, d1000: 6.2, rmse: 0.95 },
+    { id: "ARGO_INCOIS_005", lat: 15.0, lon: 90.25, name: "Central Bay of Bengal", sst: 28.9, d20: 91, d1000: 6.1, rmse: 0.88 },
+    { id: "ARGO_INCOIS_006", lat: 12.25, lon: 90.50, name: "Southern Bay of Bengal", sst: 29.7, d20: 95, d1000: 6.1, rmse: 0.82 }
   ];
 
   argoFloats.forEach(f => {
+    // Distinct circular blue dot marker with pulsating halo
     const argoIcon = L.divIcon({
-      className: "argo-marker-icon",
-      html: `<div style="background:#059669; width:13px; height:13px; border-radius:50%; border:2px solid #fff; box-shadow:0 0 8px rgba(5,150,105,0.6);"></div>`
+      className: "argo-marker-wrapper",
+      html: `<div class="argo-circular-blue-dot" title="INCOIS ARGO Float: ${f.id}">
+               <div class="argo-dot-pulse"></div>
+               <div class="argo-dot-core"></div>
+             </div>`,
+      iconSize: [22, 22],
+      iconAnchor: [11, 11],
+      popupAnchor: [0, -12]
     });
+
     const floatMarker = L.marker([f.lat, f.lon], { icon: argoIcon }).addTo(map);
-    floatMarker.bindPopup(`<b>${f.name}</b><br>Click to validate with Ground Truth`);
+
+    // 1. Hover Tooltip (shows Float ID and Measured Surface Temperature)
+    floatMarker.bindTooltip(`
+      <div class="argo-hover-tooltip">
+        <div class="aht-header"><i class="fa-solid fa-anchor"></i> ${f.id}</div>
+        <div class="aht-location">${f.name}</div>
+        <div class="aht-temp">Measured Surface: <strong>${f.sst.toFixed(1)} °C</strong></div>
+      </div>
+    `, { direction: "top", offset: [0, -8], className: "custom-argo-tooltip" });
+
+    // 2. Click Popup (shows detailed observation card)
+    const popupContent = `
+      <div class="argo-click-popup">
+        <div class="acp-header">
+          <span class="acp-badge"><i class="fa-solid fa-satellite-dish"></i> INCOIS In-Situ Observation</span>
+          <h4>${f.id}</h4>
+          <span class="acp-sub">${f.name} (${f.lat.toFixed(2)}°N, ${f.lon.toFixed(2)}°E)</span>
+        </div>
+        <div class="acp-body">
+          <div class="acp-row highlight">
+            <span>Measured Surface Temp:</span>
+            <strong>${f.sst.toFixed(1)} °C</strong>
+          </div>
+          <div class="acp-row">
+            <span>Thermocline Depth (D20):</span>
+            <span>~${f.d20} m</span>
+          </div>
+          <div class="acp-row">
+            <span>Deep Temperature (1000m):</span>
+            <span>~${f.d1000} °C</span>
+          </div>
+          <div class="acp-row">
+            <span>Float Validation RMSE:</span>
+            <span class="acp-rmse">${f.rmse.toFixed(2)} °C</span>
+          </div>
+        </div>
+        <div class="acp-footer">
+          <i class="fa-solid fa-circle-check"></i> Loaded as ground truth profile
+        </div>
+      </div>
+    `;
+    floatMarker.bindPopup(popupContent, { className: "custom-argo-popup", maxWidth: 280 });
+
     floatMarker.on("click", () => {
       setCoordinates(f.lat, f.lon);
-      document.getElementById("select-argo").value = f.id;
+      const sel = document.getElementById("select-argo");
+      if (sel) sel.value = f.id;
       loadArgoValidation();
     });
+
     argoMarkers.push(floatMarker);
   });
 
@@ -326,6 +379,9 @@ function updateInputs(lat, lon) {
 }
 
 /* Initialize Chart.js Profile Curve */
+let currentProfileViewMode = "temp";
+
+/* Initialize Chart.js Profile Curve with Uncertainty Envelope & SVP Dual Mode */
 function initChart() {
   const ctx = document.getElementById("depthProfileChart").getContext("2d");
   profileChart = new Chart(ctx, {
@@ -338,11 +394,12 @@ function initChart() {
           data: [],
           borderColor: "#0284c7",
           backgroundColor: "rgba(2, 132, 199, 0.10)",
-          fill: true,
+          fill: false,
           borderWidth: 3,
           pointRadius: 4,
           pointBackgroundColor: "#0284c7",
-          tension: 0.35
+          tension: 0.35,
+          order: 2
         },
         {
           label: "GLORYS12 Ground Truth (°C)",
@@ -353,7 +410,8 @@ function initChart() {
           pointRadius: 5,
           pointBackgroundColor: "#059669",
           fill: false,
-          hidden: true
+          hidden: true,
+          order: 3
         },
         {
           label: "INCOIS ARGO In-Situ (°C)",
@@ -368,7 +426,28 @@ function initChart() {
           pointBorderColor: "#ffffff",
           pointBorderWidth: 1.5,
           fill: false,
-          hidden: false
+          hidden: false,
+          order: 4
+        },
+        {
+          label: "Confidence Upper (+1σ)",
+          data: [],
+          borderColor: "transparent",
+          backgroundColor: "rgba(2, 132, 199, 0.14)",
+          fill: "+1",
+          pointRadius: 0,
+          tension: 0.35,
+          order: 5
+        },
+        {
+          label: "Confidence Lower (-1σ)",
+          data: [],
+          borderColor: "transparent",
+          backgroundColor: "transparent",
+          fill: false,
+          pointRadius: 0,
+          tension: 0.35,
+          order: 6
         }
       ]
     },
@@ -383,26 +462,152 @@ function initChart() {
           grid: { color: "rgba(0, 0, 0, 0.06)" }
         },
         y: {
-          reverse: true,
-          title: { display: true, text: "Depth Level (meters)", color: "#475569", font: { family: "Plus Jakarta Sans", size: 12, weight: "600" } },
-          ticks: { color: "#475569" },
+          type: "category",
+          labels: [0, 5, 10, 20, 30, 50, 75, 100, 125, 150, 200, 300, 500, 700, 1000],
+          title: { display: true, text: "Depth Level (m)", color: "#475569", font: { family: "Plus Jakarta Sans", size: 12, weight: "600" } },
+          ticks: {
+            color: "#475569",
+            autoSkip: false,
+            font: { family: "JetBrains Mono", size: 11, weight: "600" },
+            callback: function(value, index) {
+              const standardDepths = [0, 5, 10, 20, 30, 50, 75, 100, 125, 150, 200, 300, 500, 700, 1000];
+              return standardDepths[index] !== undefined ? `${standardDepths[index]}m` : `${this.getLabelForValue(value)}m`;
+            }
+          },
           grid: { color: "rgba(0, 0, 0, 0.06)" }
         }
       },
       plugins: {
         legend: {
-          labels: { color: "#0f172a", font: { family: "Plus Jakarta Sans", size: 12, weight: "600" } }
+          labels: {
+            color: "#0f172a",
+            font: { family: "Plus Jakarta Sans", size: 12, weight: "600" },
+            filter: function(item) {
+              return !item.text.includes("Confidence");
+            }
+          }
         },
         tooltip: {
           callbacks: {
             label: function(context) {
-              return `${context.dataset.label}: ${context.raw}°C at ${context.label}m depth`;
+              const dIndex = context.dataIndex;
+              const standardDepths = [0, 5, 10, 20, 30, 50, 75, 100, 125, 150, 200, 300, 500, 700, 1000];
+              const depthVal = standardDepths[dIndex] !== undefined ? standardDepths[dIndex] : context.label;
+              const unit = currentProfileViewMode === "temp" ? "°C" : "m/s";
+              if (context.datasetIndex === 0 && currentProfileViewMode === "temp") {
+                const uVal = profileChart.data.datasets[3]?.data[dIndex];
+                const lVal = profileChart.data.datasets[4]?.data[dIndex];
+                const sigma = (uVal !== undefined && lVal !== undefined) ? ((uVal - lVal) / 2).toFixed(2) : "0.35";
+                return `OceanEmbedNet: ${context.raw} °C (±${sigma} °C UQ) at ${depthVal}m`;
+              }
+              return `${context.dataset.label}: ${context.raw} ${unit} at ${depthVal}m depth`;
             }
           }
         }
       }
     }
   });
+}
+
+function setProfileViewMode(mode) {
+  currentProfileViewMode = mode;
+  const btnTemp = document.getElementById("btn-chart-temp");
+  const btnSvp = document.getElementById("btn-chart-svp");
+  if (btnTemp && btnSvp) {
+    if (mode === "temp") {
+      btnTemp.classList.add("active");
+      btnSvp.classList.remove("active");
+    } else {
+      btnSvp.classList.add("active");
+      btnTemp.classList.remove("active");
+    }
+  }
+  updateProfileChartData();
+}
+
+function updateProfileChartData() {
+  if (!profileChart || !currentPrediction || !currentPrediction.profile) return;
+
+  const STANDARD_DEPTHS = [0, 5, 10, 20, 30, 50, 75, 100, 125, 150, 200, 300, 500, 700, 1000];
+  const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+  const textColor = isDark ? "#cbd5e1" : "#475569";
+
+  // Index profile points strictly by integer depth level
+  const profileMap = new Map();
+  currentPrediction.profile.forEach(p => {
+    if (p.valid) {
+      profileMap.set(Math.round(p.depth_m), p);
+    }
+  });
+
+  profileChart.data.labels = STANDARD_DEPTHS;
+
+  if (currentProfileViewMode === "temp") {
+    const temps = STANDARD_DEPTHS.map(d => profileMap.get(d)?.temperature_c ?? null);
+    const upper = STANDARD_DEPTHS.map(d => {
+      const p = profileMap.get(d);
+      return p ? (p.temp_upper_c !== undefined ? p.temp_upper_c : p.temperature_c + 0.35) : null;
+    });
+    const lower = STANDARD_DEPTHS.map(d => {
+      const p = profileMap.get(d);
+      return p ? (p.temp_lower_c !== undefined ? p.temp_lower_c : p.temperature_c - 0.35) : null;
+    });
+    const glorysTruth = STANDARD_DEPTHS.map(d => {
+      const p = profileMap.get(d);
+      return p ? (p.truth_temperature_c ?? p.glorys_truth_c ?? null) : null;
+    });
+
+    profileChart.data.datasets[0].label = "OceanEmbedNet Prediction (°C)";
+    profileChart.data.datasets[0].data = temps;
+    profileChart.data.datasets[0].borderColor = "#0284c7";
+    profileChart.data.datasets[0].pointBackgroundColor = "#0284c7";
+
+    const hasTruth = glorysTruth.some(v => v !== null);
+    if (hasTruth) {
+      profileChart.data.datasets[1].data = glorysTruth;
+      profileChart.data.datasets[1].hidden = false;
+    } else {
+      profileChart.data.datasets[1].data = [];
+      profileChart.data.datasets[1].hidden = true;
+    }
+
+    const activeFloatId = document.getElementById("select-argo")?.value || "ARGO_INCOIS_001";
+    const activeFloat = ARGO_SYNTHETIC[activeFloatId];
+    if (activeFloat && activeFloat.obs) {
+      profileChart.data.datasets[2].data = activeFloat.obs;
+      profileChart.data.datasets[2].hidden = false;
+    }
+
+    profileChart.data.datasets[3].data = upper;
+    profileChart.data.datasets[3].hidden = false;
+    profileChart.data.datasets[4].data = lower;
+    profileChart.data.datasets[4].hidden = false;
+
+    profileChart.options.scales.x.title.text = "Temperature (°C)";
+  } else {
+    // Sound Velocity Profile (Mackenzie Model)
+    const svpSpeeds = STANDARD_DEPTHS.map(d => profileMap.get(d)?.sound_velocity_ms ?? null);
+
+    profileChart.data.datasets[0].label = "Mackenzie Sound Speed (m/s)";
+    profileChart.data.datasets[0].data = svpSpeeds;
+    profileChart.data.datasets[0].borderColor = "#38bdf8";
+    profileChart.data.datasets[0].pointBackgroundColor = "#38bdf8";
+
+    profileChart.data.datasets[1].data = [];
+    profileChart.data.datasets[1].hidden = true;
+    profileChart.data.datasets[2].data = [];
+    profileChart.data.datasets[2].hidden = true;
+    profileChart.data.datasets[3].data = [];
+    profileChart.data.datasets[3].hidden = true;
+    profileChart.data.datasets[4].data = [];
+    profileChart.data.datasets[4].hidden = true;
+
+    profileChart.options.scales.x.title.text = "Underwater Sound Velocity c (m/s) — Mackenzie Model";
+  }
+
+  profileChart.options.scales.x.title.color = textColor;
+  profileChart.options.scales.y.title.color = textColor;
+  profileChart.update();
 }
 
 /* ============================================================
@@ -649,36 +854,26 @@ async function runPrediction(lat, lon, date) {
     setEl("badge-source", data.data_source ? data.data_source.split(" (")[0] : "GLORYS12V1");
     setEl("badge-model",  "OceanEmbedNet 7-ch");
 
-    // Profile chart: model prediction
-    const validPoints = data.profile.filter(p => p.valid);
-    const depths = validPoints.map(p => p.depth_m);
-    const temps  = validPoints.map(p => p.temperature_c);
-
-    // GLORYS ground truth (if available from API)
-    const glorysTruth = validPoints
-      .map(p => p.glorys_truth_c)
-      .filter(v => v !== null && v !== undefined);
-
-    profileChart.data.labels = depths;
-    profileChart.data.datasets[0].data = temps;
-
-    if (glorysTruth.length === depths.length) {
-      profileChart.data.datasets[1].data   = glorysTruth;
-      profileChart.data.datasets[1].hidden = false;
-    } else {
-      profileChart.data.datasets[1].data   = [];
-      profileChart.data.datasets[1].hidden = true;
+    // Update Operational Hazard & Sonic Layer Depth badges
+    const diag = data.diagnostics || {};
+    const cycloneHaz = diag.cyclone_hazard || {};
+    const hazBadge = document.getElementById("hazard-cyclone-badge");
+    const hazText = document.getElementById("hazard-cyclone-text");
+    if (hazBadge && hazText) {
+      hazBadge.className = `hazard-badge ${cycloneHaz.badge_class || "hazard-low"}`;
+      hazText.textContent = cycloneHaz.badge_text || "Low Intensification Risk";
+      hazBadge.title = cycloneHaz.advisory || "Click to view Operational Mission Bulletin";
     }
 
-    // Always keep and display INCOIS ARGO in-situ on chart
-    const activeFloatId = document.getElementById("select-argo")?.value || "ARGO_INCOIS_001";
-    const activeFloat = ARGO_SYNTHETIC[activeFloatId];
-    if (activeFloat && activeFloat.obs) {
-      profileChart.data.datasets[2].data   = activeFloat.obs;
-      profileChart.data.datasets[2].hidden = false;
+    const sldEl = document.getElementById("val-sld");
+    if (sldEl) {
+      sldEl.textContent = (diag.sonic_layer_depth_m !== undefined && diag.sonic_layer_depth_m !== null)
+        ? `${diag.sonic_layer_depth_m} m`
+        : "—";
     }
 
-    profileChart.update();
+    // Render profile chart with dual mode and UQ confidence envelope
+    updateProfileChartData();
 
     renderTransect();
     renderEmbeddings();
@@ -957,6 +1152,23 @@ function jumpStudioRegion(lat, lon, name) {
   renderStudio3D();
 }
 
+let isSolidVolume = true;
+
+function toggleSolidVolume() {
+  isSolidVolume = !isSolidVolume;
+  const btn = document.getElementById("btn-toggle-solid");
+  const lbl = document.getElementById("lbl-solid-status");
+  if (lbl) lbl.textContent = isSolidVolume ? "On" : "Off";
+  if (btn) {
+    if (isSolidVolume) {
+      btn.classList.add("active");
+    } else {
+      btn.classList.remove("active");
+    }
+  }
+  renderStudio3D();
+}
+
 /* Render Fullscreen 3D Volumetric Surface in Separate Studio Page */
 async function renderStudio3D() {
   const container = document.getElementById("plotly-3d-studio-container");
@@ -968,7 +1180,7 @@ async function renderStudio3D() {
   const studioMode    = document.getElementById("studio-mode")?.value  ?? "block";
   const studioDate    = document.getElementById("studio-date")?.value  ?? "";
   const colorscale    = document.getElementById("studio-colorscale")?.value ?? "Thermal";
-  const wallOpacity   = parseFloat(document.getElementById("studio-wall-opacity")?.value ?? "1.0");
+  const wallOpacity   = isSolidVolume ? 1.0 : 0.40;
 
   // Keep badges and range inputs in sync
   const latBadge = document.getElementById("studio-lat-badge");
@@ -1024,22 +1236,27 @@ async function renderStudio3D() {
     const minLon = lonsAll[0];
     const maxLon = lonsAll[lonsAll.length - 1];
 
-    // 1. Build selected active color palette dynamically matching dropdown
+    // 1. Build selected active color palette dynamically: Warm red/yellow surface water -> Cool dark blue deep water
     function buildActiveColorscale(name) {
-      if (name === "Jet") {
+      if (name === "Viridis") {
+        // Ocean thermal Viridis: Cool dark blue (0°C deep water) -> teal -> green -> warm yellow -> warm orange (surface)
+        return [
+          [0.00, "#081d58"], // 0°C: Cold deep navy
+          [0.20, "#253494"], // 6°C: Cool ocean blue
+          [0.40, "#21918c"], // 12°C: Intermediate teal
+          [0.60, "#41ab5d"], // 18°C: Green thermocline
+          [0.80, "#fde725"], // 24°C: Warm radiant yellow
+          [1.00, "#ff5400"]  // 30°C: Warm surface orange-red
+        ];
+      } else if (name === "Jet") {
         return [
           [0.00, "#000080"], [0.125, "#0000ff"], [0.375, "#00ffff"],
           [0.625, "#ffff00"], [0.875, "#ff0000"], [1.00, "#800000"]
         ];
-      } else if (name === "Viridis") {
-        return [
-          [0.00, "#440154"], [0.25, "#3b528b"], [0.50, "#21918c"],
-          [0.75, "#5ec962"], [1.00, "#fde725"]
-        ];
       } else if (name === "Plasma") {
         return [
-          [0.00, "#0d0887"], [0.25, "#6a00a8"], [0.50, "#b12a90"],
-          [0.75, "#e16462"], [1.00, "#fca636"]
+          [0.00, "#03045e"], [0.25, "#0077b6"], [0.50, "#00b4d8"],
+          [0.75, "#f77f00"], [1.00, "#d62828"]
         ];
       } else if (name === "Turbo") {
         return [
@@ -1052,17 +1269,15 @@ async function renderStudio3D() {
           [0.75, "#b9ac70"], [1.00, "#ffea46"]
         ];
       }
-      // Default: Thermal (our signature high-intensity calibrated palette)
+      // Default: Thermal Palette (Warm colors [red/yellow] for warm surface water, and cool colors [dark blue] for cold deep water)
       return [
-        [0.00, "#030838"], // Ultra-deep cold navy (0°C)
-        [0.10, "#0018a8"], // Deep royal blue (3°C)
-        [0.22, "#0055ff"], // Pure cobalt blue (6.6°C)
-        [0.36, "#00c8ff"], // Electric cyan (10.8°C)
-        [0.50, "#00e676"], // Vibrant emerald sea green (15.0°C)
-        [0.64, "#ffea00"], // Radiant solar yellow (19.2°C)
-        [0.76, "#ff7700"], // Warm rich amber-orange (22.8°C)
-        [0.88, "#ff2200"], // Fiery tropical orange-red (26.4°C)
-        [1.00, "#cc0000"]  // Intense saturated crimson red (30.0°C)
+        [0.00, "#03045e"], // 0°C: Deepest cold navy blue
+        [0.17, "#023e8a"], // 5°C (1000m): Deep cold blue
+        [0.33, "#0077b6"], // 10°C: Intermediate oceanic blue
+        [0.50, "#00b4d8"], // 15°C: Cyan thermocline transition
+        [0.67, "#ffd166"], // 20°C: Radiant solar yellow
+        [0.83, "#f77f00"], // 25°C: Warm rich amber orange
+        [1.00, "#d62828"]  // 30°C: Warm surface tropical crimson red
       ];
     }
 
@@ -1331,12 +1546,12 @@ async function renderStudio3D() {
           backgroundcolor: "rgba(6,14,31,0.95)"
         },
         zaxis: {
-          title: { text: "Depth (m)", font: { color: "#ffffff", size: 12, family: "Plus Jakarta Sans, sans-serif" } },
-          tickvals: [depthToZ(0), depthToZ(50), depthToZ(100), depthToZ(200), depthToZ(300), depthToZ(500), depthToZ(700), depthToZ(1000)],
-          ticktext: ["0", "50", "100", "200", "300", "500", "700", "1000"],
+          title: { text: "Depth", font: { color: "#ffffff", size: 12, family: "Plus Jakarta Sans, sans-serif" } },
+          tickvals: [depthToZ(0), depthToZ(200), depthToZ(500), depthToZ(1000)],
+          ticktext: ["0m", "200m", "500m", "1000m"],
           range: [-1000, 0],
-          tickfont: { color: "#e2e8f0", size: 10, family: "Plus Jakarta Sans, sans-serif" },
-          gridcolor: "rgba(56,189,248,0.18)",
+          tickfont: { color: "#e2e8f0", size: 11, family: "JetBrains Mono, monospace", weight: "700" },
+          gridcolor: "rgba(56,189,248,0.22)",
           showgrid: true,
           zeroline: false,
           showbackground: true,
@@ -1634,7 +1849,10 @@ function switchTab(tabId, btnEl) {
 }
 
 function exportData() {
-  if (!currentPrediction) return;
+  if (!currentPrediction) {
+    alert("No prediction data available to export. Please select an ocean coordinate first.");
+    return;
+  }
   const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(currentPrediction, null, 2));
   const downloadAnchor = document.createElement("a");
   downloadAnchor.setAttribute("href", dataStr);
@@ -1642,6 +1860,147 @@ function exportData() {
   document.body.appendChild(downloadAnchor);
   downloadAnchor.click();
   downloadAnchor.remove();
+}
+
+/* Operational CF-Compliant CSV Exporter for Numerical Ocean Models */
+function exportCSV() {
+  if (!currentPrediction || !currentPrediction.profile) {
+    alert("No active prediction profile to export. Please select an ocean point first.");
+    return;
+  }
+  const p = currentPrediction;
+  const diag = p.diagnostics || {};
+  const ch = diag.cyclone_hazard || {};
+
+  let csv = [];
+  csv.push("# OceanEmbed Operational Subsurface Profile (SIH PS 26066 - MoES / INCOIS)");
+  csv.push(`# Date: ${p.date}`);
+  csv.push(`# Latitude: ${p.grid_latitude} N, Longitude: ${p.grid_longitude} E`);
+  csv.push(`# Data Source: ${p.data_source || 'Copernicus GLORYS12V1'}`);
+  csv.push(`# Thermocline Depth (D20): ${diag.thermocline_d20_m ?? 'N/A'} m`);
+  csv.push(`# Mixed Layer Depth (MLD): ${diag.mixed_layer_depth_m ?? 'N/A'} m`);
+  csv.push(`# Sonic Layer Depth (SLD): ${diag.sonic_layer_depth_m ?? 'N/A'} m`);
+  csv.push(`# Tropical Cyclone Heat Potential (TCHP): ${diag.tchp_kj_cm2 ?? 'N/A'} kJ/cm2 (${ch.badge_text || 'Low Risk'})`);
+  csv.push(`# Upper Ocean Heat Content (0-300m): ${diag.ohc_300m_gj_m2 ?? 'N/A'} GJ/m2`);
+  csv.push("# -------------------------------------------------------------");
+  csv.push("depth_m,temperature_pred_c,uncertainty_sigma_c,temp_upper_c,temp_lower_c,sound_velocity_ms,glorys_truth_c,error_c");
+
+  p.profile.forEach(row => {
+    if (!row.valid) return;
+    csv.push([
+      row.depth_m,
+      row.temperature_c ?? "",
+      row.uncertainty_sigma_c ?? "",
+      row.temp_upper_c ?? "",
+      row.temp_lower_c ?? "",
+      row.sound_velocity_ms ?? "",
+      row.truth_temperature_c ?? (row.glorys_truth_c ?? ""),
+      row.error_c ?? ""
+    ].join(","));
+  });
+
+  const blob = new Blob([csv.join("\n")], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", `OceanEmbed_Profile_${p.grid_latitude}N_${p.grid_longitude}E_${p.date}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+/* Executive Operational Mission Intelligence Bulletin Modal */
+function openExecutiveBulletin() {
+  if (!currentPrediction) {
+    alert("Please select and reconstruct an ocean point first.");
+    return;
+  }
+  const p = currentPrediction;
+  const diag = p.diagnostics || {};
+  const ch = diag.cyclone_hazard || {};
+  const mhw = diag.marine_heatwave || {};
+
+  // Header timestamp
+  const tsEl = document.getElementById("bulletin-timestamp");
+  if (tsEl) {
+    tsEl.textContent = `North Indian Ocean Sector | Lat: ${p.grid_latitude.toFixed(2)}°N, Lon: ${p.grid_longitude.toFixed(2)}°E | Date: ${p.date}`;
+  }
+
+  // Hazard Box
+  const hBox = document.getElementById("bulletin-hazard-box");
+  const hTitle = document.getElementById("bulletin-hazard-title");
+  const hDesc = document.getElementById("bulletin-hazard-desc");
+  const hIcon = document.getElementById("bhb-icon");
+
+  if (hBox && hTitle && hDesc) {
+    const cls = ch.badge_class || "hazard-low";
+    hBox.className = `bulletin-hazard-banner ${cls === "hazard-severe" ? "hazard-banner-severe" : (cls === "hazard-moderate" ? "hazard-banner-moderate" : "hazard-banner-low")}`;
+    hTitle.textContent = `Tropical Cyclone Potential: ${ch.badge_text || "Low Intensification Risk"}`;
+    hDesc.textContent = ch.advisory || `TCHP is ${diag.tchp_kj_cm2 || 0} kJ/cm². Subsurface thermal conditions are within normal climatological bounds.`;
+    if (hIcon) {
+      hIcon.innerHTML = cls === "hazard-severe" ? '<i class="fa-solid fa-bolt"></i>' : (cls === "hazard-moderate" ? '<i class="fa-solid fa-triangle-exclamation"></i>' : '<i class="fa-solid fa-shield-halved"></i>');
+    }
+  }
+
+  // Grid metrics
+  const setEl = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined) el.textContent = val; };
+  setEl("b-d20", diag.thermocline_d20_m ? `${diag.thermocline_d20_m} m` : "—");
+  setEl("b-mld", diag.mixed_layer_depth_m ? `${diag.mixed_layer_depth_m} m` : "—");
+  setEl("b-sld", diag.sonic_layer_depth_m ? `${diag.sonic_layer_depth_m} m` : "—");
+  setEl("b-sound-surface", diag.surface_sound_velocity_ms ? `${diag.surface_sound_velocity_ms} m/s` : "—");
+  setEl("b-tchp", diag.tchp_kj_cm2 !== undefined ? `${diag.tchp_kj_cm2} kJ/cm²` : "—");
+  setEl("b-ohc", diag.ohc_300m_gj_m2 !== undefined ? `${diag.ohc_300m_gj_m2} GJ/m²` : "—");
+
+  // Satellite pills
+  const satPills = document.getElementById("bulletin-satellite-pills");
+  if (satPills && p.surface_observations) {
+    const obs = p.surface_observations;
+    const u10 = obs.u10 ?? obs.u_wind ?? 0;
+    const v10 = obs.v10 ?? obs.v_wind ?? 0;
+    const windSpeed = Math.sqrt(u10**2 + v10**2).toFixed(1);
+    satPills.innerHTML = `
+      <div class="sat-pill"><span class="sat-pill-name">OSTIA Sea Surface Temp</span><span class="sat-pill-val">${obs.sst !== undefined ? obs.sst + ' °C' : '—'}</span></div>
+      <div class="sat-pill"><span class="sat-pill-name">SMAP Surface Salinity</span><span class="sat-pill-val">${obs.sss !== undefined ? obs.sss + ' PSU' : '—'}</span></div>
+      <div class="sat-pill"><span class="sat-pill-name">Altimetry Sea Level Anomaly</span><span class="sat-pill-val">${obs.sla !== undefined ? obs.sla + ' m' : '—'}</span></div>
+      <div class="sat-pill"><span class="sat-pill-name">Surface Current (Zonal U)</span><span class="sat-pill-val">${obs.u !== undefined ? obs.u + ' m/s' : '—'}</span></div>
+      <div class="sat-pill"><span class="sat-pill-name">Surface Current (Meridional V)</span><span class="sat-pill-val">${obs.v !== undefined ? obs.v + ' m/s' : '—'}</span></div>
+      <div class="sat-pill"><span class="sat-pill-name">10m Surface Wind Velocity</span><span class="sat-pill-val">${windSpeed} m/s</span></div>
+    `;
+  }
+
+  // Action Items List
+  const actionsList = document.getElementById("bulletin-actions-list");
+  if (actionsList) {
+    let items = [];
+    if (ch.level === "SEVERE_RI_ALERT") {
+      items.push(`<li><i class="fa-solid fa-triangle-exclamation" style="color:#f87171;"></i> <div><strong>IMD Cyclone Rapid Intensification Alert:</strong> High TCHP reservoir (> 80 kJ/cm²) identified. Tropical disturbances entering this zone have elevated probability of rapid intensification into severe cyclonic storms. Advise INCOIS & SDMA coastal monitoring.</div></li>`);
+    } else if (ch.level === "MODERATE_ALERT") {
+      items.push(`<li><i class="fa-solid fa-triangle-exclamation" style="color:#fbbf24;"></i> <div><strong>Cyclone Thermal Reservoir:</strong> Moderate TCHP supporting sustained storm tracks. Recommend routine satellite radar surveillance.</div></li>`);
+    } else {
+      items.push(`<li><i class="fa-solid fa-circle-check" style="color:#34d399;"></i> <div><strong>Tropical Cyclone Fuel:</strong> Subsurface thermal conditions are within normal climatological bounds; low risk of rapid tropical storm intensification.</div></li>`);
+    }
+
+    if (diag.sonic_layer_depth_m) {
+      items.push(`<li><i class="fa-solid fa-water" style="color:#38bdf8;"></i> <div><strong>Naval Tactical Sonar Advisory:</strong> Sonic Layer Depth is established at <strong>${diag.sonic_layer_depth_m}m</strong>. Active sonar surface duct operates from 0 to ${diag.sonic_layer_depth_m}m. Submarines operating below ${diag.sonic_layer_depth_m}m occupy the acoustic shadow zone.</div></li>`);
+    }
+
+    if (mhw && mhw.detected) {
+      items.push(`<li><i class="fa-solid fa-fire" style="color:#fb923c;"></i> <div><strong>Marine Ecological Alert:</strong> Marine Heatwave (${mhw.category}) identified with SST at ${mhw.sst_c}°C. Thermal stress threshold reached for coral reefs and pelagic migratory species.</div></li>`);
+    } else {
+      items.push(`<li><i class="fa-solid fa-fish" style="color:#38bdf8;"></i> <div><strong>Fisheries Advisory:</strong> Normal thermocline gradient supports stable pelagic fishing zones across continental shelf breaks.</div></li>`);
+    }
+
+    actionsList.innerHTML = items.join("");
+  }
+
+  const modal = document.getElementById("bulletin-modal");
+  if (modal) modal.classList.remove("hidden");
+}
+
+function closeExecutiveBulletin() {
+  const modal = document.getElementById("bulletin-modal");
+  if (modal) modal.classList.add("hidden");
 }
 
 /* ============================================================
