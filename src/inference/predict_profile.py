@@ -30,7 +30,10 @@ from src.config import (
 )
 from src.models.ocean_embed_net import load_trained_ocean_embed_net
 from src.data.preprocessor import OceanPreprocessor
-from src.data.ocean_physics import compute_physical_diagnostics, compute_d20_grid_2d
+from src.data.ocean_physics import (
+    compute_physical_diagnostics, compute_d20_grid_2d,
+    compute_mackenzie_sound_velocity, compute_profile_uncertainty
+)
 
 
 class OceanEmbedPredictor:
@@ -225,15 +228,26 @@ class OceanEmbedPredictor:
         pred_col = pred_3d[:, i_lat, j_lon]
         truth_col = truth_3d[:, i_lat, j_lon]
 
+        # Sound velocity and uncertainty calculations
+        sound_speeds = compute_mackenzie_sound_velocity(pred_col, self.depths, salinity=35.0)
+        uncertainties = compute_profile_uncertainty(self.depths)
+
         for k, depth_m in enumerate(self.depths):
             p_val = pred_col[k]
             t_val = truth_col[k]
             is_valid = bool(is_ocean and np.isfinite(p_val) and np.isfinite(t_val))
+            sigma = float(uncertainties[k])
+            c_val = float(sound_speeds[k]) if k < len(sound_speeds) and np.isfinite(sound_speeds[k]) else None
+
             profile_data.append({
                 "depth_m": float(depth_m),
                 "temperature_c": round(float(p_val), 3) if is_valid else None,
                 "truth_temperature_c": round(float(t_val), 3) if is_valid else None,
                 "error_c": round(float(p_val - t_val), 3) if is_valid else None,
+                "uncertainty_sigma_c": round(sigma, 3) if is_valid else None,
+                "temp_upper_c": round(float(p_val + sigma), 3) if is_valid else None,
+                "temp_lower_c": round(float(p_val - sigma), 3) if is_valid else None,
+                "sound_velocity_ms": round(c_val, 2) if is_valid and c_val is not None else None,
                 "valid": is_valid,
             })
 
