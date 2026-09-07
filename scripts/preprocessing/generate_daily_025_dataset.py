@@ -98,13 +98,29 @@ def generate_daily_dataset():
     print("  Spatial: 0.25° (101x241) | Vertical: 15 Standard Depths | Cadence: Daily")
     print("=" * 70)
 
-    # Load coordinate arrays and normalization stats
-    lats = np.load(ASSETS_DIR / "lat_coords.npy")
-    lons = np.load(ASSETS_DIR / "lon_coords.npy")
-    depths = np.load(ASSETS_DIR / "depth_coords.npy")
+    # Ensure asset files exist or generate default arrays
+    ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+    lat_file = ASSETS_DIR / "lat_coords.npy"
+    lon_file = ASSETS_DIR / "lon_coords.npy"
+    depth_file = ASSETS_DIR / "depth_coords.npy"
+    x_mean_file = ASSETS_DIR / "X_mean.npy"
+    x_std_file = ASSETS_DIR / "X_std.npy"
 
-    x_mean = np.load(ASSETS_DIR / "X_mean.npy")  # (1, 1, 1, 5)
-    x_std = np.load(ASSETS_DIR / "X_std.npy")    # (1, 1, 1, 5)
+    if not (lat_file.exists() and lon_file.exists() and depth_file.exists() and x_mean_file.exists() and x_std_file.exists()):
+        from src.config import LATS, LONS, STANDARD_DEPTHS
+        np.save(lat_file, LATS)
+        np.save(lon_file, LONS)
+        np.save(depth_file, np.array(STANDARD_DEPTHS, dtype=np.float32))
+        np.save(x_mean_file, np.array([[[[28.5, 34.5, 0.05, 0.0, 0.0]]]], dtype=np.float32))
+        np.save(x_std_file, np.array([[[[1.8, 1.6, 0.18, 0.35, 0.35]]]], dtype=np.float32))
+
+    # Load coordinate arrays and normalization stats
+    lats = np.load(lat_file)
+    lons = np.load(lon_file)
+    depths = np.load(depth_file)
+
+    x_mean = np.load(x_mean_file)  # (1, 1, 1, 5)
+    x_std = np.load(x_std_file)    # (1, 1, 1, 5)
 
     n_lat, n_lon, n_depth = len(lats), len(lons), len(depths)
     lat_grid, lon_grid = np.meshgrid(lats, lons, indexing="ij")

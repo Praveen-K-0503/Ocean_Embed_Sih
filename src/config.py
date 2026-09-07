@@ -1,7 +1,8 @@
 """
-Global configuration for OceanEmbed Real-Time System (SIH Problem 26066).
+Global configuration for OceanEmbed Real-Time System (SIH Problem 26066 - MoES / INCOIS).
 Domain: North Indian Ocean (5°N–30°N, 45°E–105°E) at 0.25° resolution.
-Real data: Copernicus GLORYS12V1 + CMEMS satellite observations.
+Primary Dataset: SIH_Final_Data (Final_Training_Dataset_2022_2024.nc, 1096 daily timesteps)
+Validation Dataset: SIH_Final_Data (ARGO_15depths_validation.nc, INCOIS gridded ARGO)
 """
 
 from pathlib import Path
@@ -11,10 +12,18 @@ import numpy as np
 # ─────────────────────────────────────────────────────────────────────────────
 # Base Directories
 # ─────────────────────────────────────────────────────────────────────────────
-PROJECT_ROOT    = Path(__file__).resolve().parents[1]
-REALTIME_DIR    = PROJECT_ROOT / "data" / "realtime"
-ASSETS_DIR      = PROJECT_ROOT / "ocean_embed_inference_assets"
-OUTPUT_DIR      = PROJECT_ROOT / "data" / "realtime"
+PROJECT_ROOT     = Path(__file__).resolve().parents[1]
+SIH_DATA_DIR     = PROJECT_ROOT / "SIH_Final_Data"
+REALTIME_DIR     = PROJECT_ROOT / "data" / "realtime"
+REALTIME_DIR.mkdir(parents=True, exist_ok=True)
+ASSETS_DIR       = PROJECT_ROOT / "ocean_embed_inference_assets"
+OUTPUT_DIR       = REALTIME_DIR
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Primary Production Datasets (SIH_Final_Data)
+# ─────────────────────────────────────────────────────────────────────────────
+SIH_FINAL_TRAINING_NC = SIH_DATA_DIR / "Final_Training_Dataset_2022_2024.nc"
+SIH_FINAL_ARGO_NC     = SIH_DATA_DIR / "ARGO_15depths_validation.nc"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Geographic Domain: North Indian Ocean
@@ -38,7 +47,7 @@ REGIONS = {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Vertical Standard Depth Levels (15 levels, 0–1000 m)
+# Vertical Standard Depth Levels (15 levels, 0–1000 m) - MoES/INCOIS Spec
 # ─────────────────────────────────────────────────────────────────────────────
 STANDARD_DEPTHS: List[float] = [
     0.0, 5.0, 10.0, 20.0, 30.0, 50.0, 75.0, 100.0,
@@ -47,34 +56,52 @@ STANDARD_DEPTHS: List[float] = [
 N_DEPTHS: int = len(STANDARD_DEPTHS)  # 15
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Input Variables: 7 Surface Satellite Channels
+# Input Variables: 7 Surface Satellite Channels (Matching SIH_Final_Data keys)
 # ─────────────────────────────────────────────────────────────────────────────
 SURFACE_VARIABLES: List[str] = [
-    "sst",     # Sea Surface Temperature (°C)
-    "sss",     # Sea Surface Salinity (PSU)
-    "ssh",     # Sea Surface Height / SLA (m)
-    "u_curr",  # Surface eastward current (m/s)
-    "v_curr",  # Surface northward current (m/s)
-    "u_wind",  # 10m eastward wind (m/s)
-    "v_wind",  # 10m northward wind (m/s)
+    "sst",             # Sea Surface Temperature (°C) - UKMO OSTIA
+    "sss",             # Sea Surface Salinity (PSU) - SMAP/SMOS
+    "ssh",             # Sea Surface Height / SLA (m) - DUACS
+    "u",               # Surface eastward current (m/s) - OSCAR
+    "v",               # Surface northward current (m/s) - OSCAR
+    "eastward_wind",   # 10m eastward wind (m/s) - CCMP/ASCAT
+    "northward_wind",  # 10m northward wind (m/s) - CCMP/ASCAT
 ]
 N_INPUT_CHANNELS: int = len(SURFACE_VARIABLES)  # 7
 
-TARGET_VARIABLE: str = "thetao"   # GLORYS12 potential temperature (°C)
+TARGET_VARIABLE: str = "thetao"   # Copernicus GLORYS12 potential temperature (°C)
 N_OUTPUT_CHANNELS: int = N_DEPTHS  # 15
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Climatological Normalization Statistics (from CMEMS NIO 2024)
+# Climatological Normalization Statistics (Computed from 2022–2024 NIO dataset)
 # ─────────────────────────────────────────────────────────────────────────────
 NORM_STATS: Dict[str, Tuple[float, float]] = {
-    "sst":    (28.5,  1.8),   # Tropical warm pool ~28–30°C
-    "sss":    (34.5,  1.6),   # Saline AS (~36) vs low-salinity BoB (~32)
-    "ssh":    (0.05,  0.18),  # SLA dynamics (m)
-    "u_curr": (0.0,   0.35),  # m/s
-    "v_curr": (0.0,   0.35),  # m/s
-    "u_wind": (1.2,   4.5),   # Monsoonal wind (m/s)
-    "v_wind": (0.8,   4.2),   # Monsoonal wind (m/s)
-    "thetao": (18.0,  8.5),   # Surface ~29°C → 1000m ~6°C
+    "sst":            (28.64, 1.75),   # (°C)
+    "sss":            (34.52, 2.07),   # (PSU)
+    "ssh":            (0.107, 0.098),  # (m)
+    "u":              (0.030, 0.273),  # (m/s)
+    "v":              (0.009, 0.227),  # (m/s)
+    "eastward_wind":  (3.054, 1.581),  # (m/s)
+    "northward_wind": (-1.116, 2.494), # (m/s)
+    "thetao":         (21.69, 7.66),   # Full-column (°C)
+}
+
+DEPTH_NORM_STATS: Dict[float, Tuple[float, float]] = {
+    0.0:    (28.72, 1.83),
+    5.0:    (28.64, 1.81),
+    10.0:   (28.62, 1.74),
+    20.0:   (28.52, 1.70),
+    30.0:   (28.28, 1.71),
+    50.0:   (27.43, 1.90),
+    75.0:   (25.77, 2.20),
+    100.0:  (23.41, 2.30),
+    125.0:  (20.78, 2.31),
+    150.0:  (18.50, 2.25),
+    200.0:  (15.64, 1.97),
+    300.0:  (13.11, 1.57),
+    500.0:  (11.21, 1.23),
+    700.0:  (9.78,  1.24),
+    1000.0: (7.69,  1.03),
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -85,13 +112,13 @@ MODEL_CHECKPOINT = ASSETS_DIR / "oceanembed_best.pt"
 # ─────────────────────────────────────────────────────────────────────────────
 # Validation / Evaluation Paths
 # ─────────────────────────────────────────────────────────────────────────────
-ARGO_CSV_PATH     = REALTIME_DIR / "incois_argo_validation_samples.csv"
 METRICS_JSON_PATH = REALTIME_DIR / "evaluation_metrics.json"
-LAND_MASK_PATH    = REALTIME_DIR / "ocean_land_mask.nc"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Ocean Physics
+# Ocean Physics Constants
 # ─────────────────────────────────────────────────────────────────────────────
-RHO_0: float = 1025.0    # Seawater reference density (kg/m³)
-CP: float    = 3995.0    # Specific heat capacity (J/kg/K)
-T_20_ISOTHERM: float = 20.0  # Thermocline proxy isotherm (°C)
+RHO_0: float = 1025.0          # Seawater reference density (kg/m³)
+CP: float    = 3995.0          # Specific heat capacity (J/kg/K)
+T_20_ISOTHERM: float = 20.0    # Thermocline depth proxy isotherm (°C)
+T_26_ISOTHERM: float = 26.0    # Tropical Cyclone Heat Potential isotherm (°C)
+MLD_DELTA_T: float = 0.2       # Mixed Layer Depth threshold (°C from surface)

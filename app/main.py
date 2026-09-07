@@ -1,9 +1,8 @@
- """
+"""
 OceanEmbed FastAPI Backend — Real-Time Subsurface Ocean Temperature Reconstruction
-SIH Problem 26066 — MoES / INCOIS
 
 Data source: Copernicus Marine Service GLORYS12V1 (doi: 10.48670/moi-00021)
-Model:       OceanEmbedNet 7-channel (SST, SSS, SSH, u_curr, v_curr, u_wind, v_wind)
+Model:       OceanEmbedNet
 Coverage:    2024-06-01 to 2024-06-10 | 0.25° | 5°N–30°N, 45°E–105°E | 15 depths
 """
 
@@ -21,30 +20,43 @@ from src.evaluation.evaluate_argo import ArgoValidationEngine
 app = FastAPI(
     title="OceanEmbed — Real-Time Subsurface Ocean Temperature Reconstruction",
     description=(
-        "MoES / INCOIS SIH Problem 26066 — "
-        "Real Copernicus GLORYS12V1 data · OceanEmbedNet 7-channel · "
+        "Real Copernicus GLORYS12V1 data · OceanEmbedNet · "
         "North Indian Ocean 0.25° daily"
     ),
     version="3.0.0",
 )
 
 # Global singletons
-predictor: OceanEmbedPredictor = None
-validator: ArgoValidationEngine = None
+_predictor: OceanEmbedPredictor = None
+_validator: ArgoValidationEngine = None
+
+
+def get_predictor() -> OceanEmbedPredictor:
+    global _predictor
+    if _predictor is None:
+        _predictor = OceanEmbedPredictor()
+    return _predictor
+
+
+def get_validator() -> ArgoValidationEngine:
+    global _validator
+    if _validator is None:
+        _validator = ArgoValidationEngine()
+    return _validator
 
 
 @app.on_event("startup")
 def startup_event():
-    global predictor, validator
-    predictor = OceanEmbedPredictor()
-    validator = ArgoValidationEngine()
+    get_predictor()
+    get_validator()
 
 
 @app.on_event("shutdown")
 def shutdown_event():
-    global predictor
-    if predictor:
-        predictor.close()
+    global _predictor
+    if _predictor:
+        _predictor.close()
+        _predictor = None
 
 
 # ─── Static Files ──────────────────────────────────────────────────────────────
@@ -64,14 +76,14 @@ def get_dashboard():
 def predict_profile_api(
     lat:  float = Query(15.0, description="Latitude (5°N–30°N)"),
     lon:  float = Query(65.0, description="Longitude (45°E–105°E)"),
-    date: str   = Query(None, description="Date YYYY-MM-DD (real data: 2024-06-01 to 2024-06-10)"),
+    date: str   = Query(None, description="Date YYYY-MM-DD (2022-01-01 to 2024-12-31)"),
 ):
     """
     Reconstruct vertical temperature profile at (lat, lon) using real OceanEmbedNet inference.
     Returns 15-depth profile from real GLORYS12V1 data + model prediction.
     """
     try:
-        res = predictor.predict_profile(lat=lat, lon=lon, date=date)
+        res = get_predictor().predict_profile(lat=lat, lon=lon, date=date)
         return JSONResponse(content=res)
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
@@ -85,7 +97,7 @@ def predict_transect_api(
 ):
     """Generate 2D vertical cross-section transect (Depth × Lon or Depth × Lat)."""
     try:
-        res = predictor.predict_transect(fixed_val=fixed_val, date=date, axis=axis)
+        res = get_predictor().predict_transect(fixed_val=fixed_val, date=date, axis=axis)
         return JSONResponse(content=res)
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
@@ -102,7 +114,7 @@ def get_volume_3d_api(
     orthocut slices (lat + lon curtains) + 0.25° surface SST + D20 thermocline.
     """
     try:
-        res = predictor.predict_volume_3d(lat=lat, lon=lon, date=date)
+        res = get_predictor().predict_volume_3d(lat=lat, lon=lon, date=date)
         return JSONResponse(content=res)
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
@@ -112,7 +124,7 @@ def get_volume_3d_api(
 def get_embeddings_api(date: str = Query(None, description="Date YYYY-MM-DD")):
     """Extract OceanEmbedNet latent spatial embeddings for the selected date."""
     try:
-        res = predictor.get_latent_embeddings(date=date)
+        res = get_predictor().get_latent_embeddings(date=date)
         return JSONResponse(content=res)
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
@@ -128,19 +140,20 @@ def get_basin_map_api(
     Used for map overlay rendering.
     """
     try:
-        res = predictor.get_basin_map(date=date, depth_m=depth_m)
+        res = get_predictor().get_basin_map(date=date, depth_m=depth_m)
         return JSONResponse(content=res)
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
 
 
 @app.get("/api/surface_obs")
+@app.get("/api/surface_observations")
 def get_surface_observations_api(date: str = Query(None, description="Date YYYY-MM-DD")):
     """
     Return real CMEMS 7-channel surface observation fields (SST, SSS, SSH, currents, winds).
     """
     try:
-        res = predictor.get_surface_observations(date=date)
+        res = get_predictor().get_surface_observations(date=date)
         return JSONResponse(content=res)
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
@@ -151,11 +164,11 @@ def get_surface_observations_api(date: str = Query(None, description="Date YYYY-
 @app.get("/api/argo_validation")
 def get_argo_validation_api(float_id: str = Query(None, description="Float ID (e.g. ARGO_INCOIS_001)")):
     """Return real INCOIS ARGO float temperature profiles for in-situ validation."""
-    float_info   = validator.get_float_data(float_id=float_id)
-    all_floats   = validator.get_all_floats_summary()
+    float_info   = get_validator().get_float_data(float_id=float_id)
+    all_floats   = get_validator().get_all_floats_summary()
     return JSONResponse(content={
         "status":           "success",
-        "data_source":      "INCOIS ARGO In-Situ Float Network (2024-06)",
+        "data_source":      "INCOIS ARGO In-Situ Float Network (SIH_Final_Data)",
         "argo_data":        float_info,
         "available_floats": all_floats,
     })
@@ -164,21 +177,21 @@ def get_argo_validation_api(float_id: str = Query(None, description="Float ID (e
 @app.get("/api/metrics")
 def get_metrics_api():
     """
-    Return honest depth-wise evaluation metrics from OceanEmbedNet vs GLORYS12V1.
-    Overall RMSE ≈ 0.992°C, r ≈ 0.40 (real independent evaluation).
+    Return honest depth-wise evaluation metrics from OceanEmbedNet vs INCOIS ARGO & GLORYS12V1.
     """
-    metrics = validator.compute_metrics()
+    metrics = get_validator().compute_metrics()
     return JSONResponse(content=metrics)
 
 
 # ─── Metadata Endpoints ────────────────────────────────────────────────────────
 
 @app.get("/api/dates")
-def get_dates_api(mode: str = Query(None, description="Dataset mode: 2018 or 2024")):
+def get_dates_api(mode: str = Query(None, description="Dataset mode")):
     """Return available real data dates, dataset modes, and system metadata."""
     try:
-        ds_info = predictor.get_datasets()
-        active_mode = mode if (mode and mode in ds_info["datasets"]) else ds_info["active_mode"]
+        pred = get_predictor()
+        ds_info = pred.get_datasets()
+        active_mode = ds_info["active_mode"]
         current_ds = ds_info["datasets"][active_mode]
         dates = current_ds["dates"]
 
@@ -187,15 +200,15 @@ def get_dates_api(mode: str = Query(None, description="Dataset mode: 2018 or 202
             "active_mode":        active_mode,
             "dates":              dates,
             "datasets":           ds_info["datasets"],
-            "start_date":         dates[0]  if dates else "2018-01-01",
-            "end_date":           dates[-1] if dates else "2018-07-01",
+            "start_date":         dates[0]  if dates else "2022-01-01",
+            "end_date":           dates[-1] if dates else "2024-12-31",
             "cadence":            "Daily",
             "data_source":        current_ds["source"],
             "spatial_resolution": "0.25° × 0.25°",
-            "standard_depths":    [float(d) for d in predictor.depths],
+            "standard_depths":    [float(d) for d in pred.depths],
             "region":             "North Indian Ocean (5°N–30°N, 45°E–105°E)",
-            "model":              "OceanEmbedNet (7-channel, SIH 26066)",
-            "input_variables":    ["SST", "SSS", "SSH", "u_curr", "v_curr", "u_wind", "v_wind"],
+            "model":              "OceanEmbedNet (7-Channel Attention-Residual)",
+            "input_variables":    ["SST", "SSS", "SSH", "u", "v", "eastward_wind", "northward_wind"],
             "n_input_channels":   7,
             "n_depths":           15,
         })
