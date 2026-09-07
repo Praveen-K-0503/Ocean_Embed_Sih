@@ -8,11 +8,69 @@ initTheme();
 
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
+  initOceanCanvasWave();
   if (sessionStorage.getItem("ocean_logged_in") === "true") {
     showDashboard();
   }
   initInteractiveLogin();
 });
+
+/* Fast 60FPS HTML5 Canvas Ocean Wave Renderer */
+function initOceanCanvasWave() {
+  const canvas = document.getElementById("ocean-wave-canvas");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  let width, height;
+  let t = 0;
+
+  function resize() {
+    width = canvas.width = canvas.parentElement.offsetWidth || window.innerWidth;
+    height = canvas.height = canvas.parentElement.offsetHeight || window.innerHeight;
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  function animate() {
+    ctx.clearRect(0, 0, width, height);
+
+    const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+    const bgGradient = ctx.createLinearGradient(0, 0, 0, height);
+    if (isDark) {
+      bgGradient.addColorStop(0, "#050a17");
+      bgGradient.addColorStop(1, "#0a1628");
+    } else {
+      bgGradient.addColorStop(0, "#f0f9ff");
+      bgGradient.addColorStop(1, "#e0f2fe");
+    }
+    ctx.fillStyle = bgGradient;
+    ctx.fillRect(0, 0, width, height);
+
+    const waveColors = isDark
+      ? ["rgba(14, 165, 233, 0.25)", "rgba(56, 189, 248, 0.2)", "rgba(2, 132, 199, 0.15)", "rgba(16, 185, 129, 0.1)"]
+      : ["rgba(14, 165, 233, 0.2)", "rgba(56, 189, 248, 0.25)", "rgba(2, 132, 199, 0.15)", "rgba(56, 189, 248, 0.1)"];
+
+    for (let layer = 0; layer < 4; layer++) {
+      ctx.beginPath();
+      const amplitude = 25 + layer * 12;
+      const frequency = 0.003 + layer * 0.001;
+      const speed = (0.015 + layer * 0.004) * (layer % 2 === 0 ? 1 : -1);
+      const baseY = height * (0.55 + layer * 0.1);
+
+      ctx.moveTo(0, height);
+      for (let x = 0; x <= width; x += 10) {
+        const y = baseY + Math.sin(x * frequency + t * speed) * amplitude + Math.cos(x * 0.002 + t * 0.01) * 8;
+        ctx.lineTo(x, y);
+      }
+      ctx.lineTo(width, height);
+      ctx.fillStyle = waveColors[layer];
+      ctx.fill();
+    }
+
+    t += 1;
+    requestAnimationFrame(animate);
+  }
+  animate();
+}
 
 /* ============================================================
    Light / Dark Mode Theme System
@@ -350,7 +408,7 @@ function initChart() {
 /* ============================================================
    Dual-Mode Dataset State & Switcher
    ============================================================ */
-let currentDatasetMode = "2018";
+let currentDatasetMode = "2022_2024";
 let datasetsMetadata = null;
 
 async function changeDatasetMode(newMode) {
@@ -375,13 +433,8 @@ async function loadDates(resetToDefault = false) {
     // Update navbar dataset badge
     const badge = document.getElementById("nav-dataset-name");
     if (badge) {
-      if (currentDatasetMode === "2018") {
-        badge.innerHTML = `<i class="fa-solid fa-satellite"></i> CMEMS 2018 (${data.dates.length} Days)`;
-        badge.style.color = "var(--accent-cyan)";
-      } else {
-        badge.innerHTML = `<i class="fa-solid fa-bolt"></i> Operational 2024 (${data.dates.length} Days)`;
-        badge.style.color = "var(--accent-amber)";
-      }
+      badge.innerHTML = `<i class="fa-solid fa-satellite"></i> SIH_Final_Data (${data.dates.length} Days | 2022–2024)`;
+      badge.style.color = "var(--accent-cyan)";
     }
 
     // Populate main dashboard date dropdown
@@ -394,13 +447,8 @@ async function loadDates(resetToDefault = false) {
       select.appendChild(opt);
     });
 
-    // Default to first date for 2018 or latest for 2024
-    let selectedDate = data.dates[0];
-    if (currentDatasetMode === "2024") {
-      selectedDate = data.dates[data.dates.length - 1];
-    } else if (data.dates.includes("2018-01-01")) {
-      selectedDate = "2018-01-01";
-    }
+    // Default to operational date (2024-06-01) or latest available date
+    let selectedDate = data.dates.includes("2024-06-01") ? "2024-06-01" : (data.dates[data.dates.length - 1] || data.dates[0]);
     select.value = selectedDate;
 
     // Populate 3D Studio date dropdown
@@ -634,6 +682,13 @@ async function runPrediction(lat, lon, date) {
 
     renderTransect();
     renderEmbeddings();
+
+    // Sync 3D Studio inputs and trigger re-render
+    const studioLatEl = document.getElementById("studio-lat");
+    const studioLonEl = document.getElementById("studio-lon");
+    if (studioLatEl) studioLatEl.value = lat.toFixed(2);
+    if (studioLonEl) studioLonEl.value = lon.toFixed(2);
+    renderStudio3D();
   } catch (err) {
     console.error("Error predicting profile:", err);
   }
@@ -871,12 +926,24 @@ function syncDateFromStudio(date) {
   renderStudio3D();
 }
 
+
+
 /* Quick Jump to Important Basin Regions in 3D Studio */
 function jumpStudioRegion(lat, lon, name) {
   const latEl = document.getElementById("studio-lat");
   const lonEl = document.getElementById("studio-lon");
   if (latEl) latEl.value = lat.toFixed(2);
   if (lonEl) lonEl.value = lon.toFixed(2);
+
+  const latRange = document.getElementById("studio-lat-range");
+  const lonRange = document.getElementById("studio-lon-range");
+  if (latRange) latRange.value = lat.toFixed(2);
+  if (lonRange) lonRange.value = lon.toFixed(2);
+
+  const latBadge = document.getElementById("studio-lat-badge");
+  const lonBadge = document.getElementById("studio-lon-badge");
+  if (latBadge) latBadge.textContent = `${lat.toFixed(2)}°N`;
+  if (lonBadge) lonBadge.textContent = `${lon.toFixed(2)}°E`;
 
   const inLat = document.getElementById("input-lat");
   const inLon = document.getElementById("input-lon");
@@ -895,12 +962,24 @@ async function renderStudio3D() {
   const container = document.getElementById("plotly-3d-studio-container");
   if (!container) return;
 
-  const studioLat   = parseFloat(document.getElementById("studio-lat")?.value ?? "15.0");
-  const studioLon   = parseFloat(document.getElementById("studio-lon")?.value ?? "65.0");
-  const studioAxis  = document.getElementById("studio-axis")?.value  ?? "lat";
-  const studioMode  = document.getElementById("studio-mode")?.value  ?? "curtains";
-  const studioDate  = document.getElementById("studio-date")?.value  ?? "";
-  const colorscale  = document.getElementById("studio-colorscale")?.value ?? "Thermal";
+  const studioLat     = parseFloat(document.getElementById("studio-lat")?.value ?? "15.0");
+  const studioLon     = parseFloat(document.getElementById("studio-lon")?.value ?? "65.0");
+  const studioAxis    = document.getElementById("studio-axis")?.value  ?? "lat";
+  const studioMode    = document.getElementById("studio-mode")?.value  ?? "block";
+  const studioDate    = document.getElementById("studio-date")?.value  ?? "";
+  const colorscale    = document.getElementById("studio-colorscale")?.value ?? "Thermal";
+  const wallOpacity   = parseFloat(document.getElementById("studio-wall-opacity")?.value ?? "1.0");
+
+  // Keep badges and range inputs in sync
+  const latBadge = document.getElementById("studio-lat-badge");
+  const lonBadge = document.getElementById("studio-lon-badge");
+  if (latBadge) latBadge.textContent = `${studioLat.toFixed(2)}°N`;
+  if (lonBadge) lonBadge.textContent = `${studioLon.toFixed(2)}°E`;
+
+  const latRange = document.getElementById("studio-lat-range");
+  const lonRange = document.getElementById("studio-lon-range");
+  if (latRange && Math.abs(parseFloat(latRange.value) - studioLat) > 0.01) latRange.value = studioLat;
+  if (lonRange && Math.abs(parseFloat(lonRange.value) - studioLon) > 0.01) lonRange.value = studioLon;
 
   const isDark = document.documentElement.getAttribute("data-theme") === "dark";
   const bgColor   = isDark ? "rgba(6,14,31,0.95)" : "#0a1628";
@@ -937,98 +1016,342 @@ async function renderStudio3D() {
     let plotlyData = [];
     let sceneConfig = {};
 
-    if (studioMode === "curtains") {
-      // ────────────────────────────────────────────────────────────
-      // MODE 1: Orthogonal Curtains (Surface SST + Intersecting Depth Curtains)
-      // ────────────────────────────────────────────────────────────
-      const depths = data.depths;
-      const lonsAll = data.lons_all;
-      const latsAll = data.lats_all;
+    const depths = data.depths || [0, 5, 10, 20, 30, 50, 75, 100, 125, 150, 200, 300, 500, 700, 1000];
+    const lonsAll = data.lons_all || data.lons;
+    const latsAll = data.lats_all || data.lats;
+    const minLat = latsAll[0];
+    const maxLat = latsAll[latsAll.length - 1];
+    const minLon = lonsAll[0];
+    const maxLon = lonsAll[lonsAll.length - 1];
 
-      // 1. Latitude Curtain: West->East across NIO at chosen Latitude
-      const latCurtainX = depths.map(() => lonsAll);
-      const latCurtainY = depths.map(() => lonsAll.map(() => studioLat));
-      const latCurtainZ = depths.map(d => lonsAll.map(() => -d));
+    // 1. Build selected active color palette dynamically matching dropdown
+    function buildActiveColorscale(name) {
+      if (name === "Jet") {
+        return [
+          [0.00, "#000080"], [0.125, "#0000ff"], [0.375, "#00ffff"],
+          [0.625, "#ffff00"], [0.875, "#ff0000"], [1.00, "#800000"]
+        ];
+      } else if (name === "Viridis") {
+        return [
+          [0.00, "#440154"], [0.25, "#3b528b"], [0.50, "#21918c"],
+          [0.75, "#5ec962"], [1.00, "#fde725"]
+        ];
+      } else if (name === "Plasma") {
+        return [
+          [0.00, "#0d0887"], [0.25, "#6a00a8"], [0.50, "#b12a90"],
+          [0.75, "#e16462"], [1.00, "#fca636"]
+        ];
+      } else if (name === "Turbo") {
+        return [
+          [0.00, "#30123b"], [0.20, "#4162e0"], [0.40, "#19bb6a"],
+          [0.60, "#a2fc3c"], [0.80, "#e84715"], [1.00, "#7a0403"]
+        ];
+      } else if (name === "Cividis") {
+        return [
+          [0.00, "#00204d"], [0.25, "#414d6b"], [0.50, "#7c7b78"],
+          [0.75, "#b9ac70"], [1.00, "#ffea46"]
+        ];
+      }
+      // Default: Thermal (our signature high-intensity calibrated palette)
+      return [
+        [0.00, "#030838"], // Ultra-deep cold navy (0°C)
+        [0.10, "#0018a8"], // Deep royal blue (3°C)
+        [0.22, "#0055ff"], // Pure cobalt blue (6.6°C)
+        [0.36, "#00c8ff"], // Electric cyan (10.8°C)
+        [0.50, "#00e676"], // Vibrant emerald sea green (15.0°C)
+        [0.64, "#ffea00"], // Radiant solar yellow (19.2°C)
+        [0.76, "#ff7700"], // Warm rich amber-orange (22.8°C)
+        [0.88, "#ff2200"], // Fiery tropical orange-red (26.4°C)
+        [1.00, "#cc0000"]  // Intense saturated crimson red (30.0°C)
+      ];
+    }
 
-      plotlyData.push({
-        type: "surface",
-        name: `Lat Curtain (${studioLat.toFixed(2)}°N)`,
-        x: latCurtainX,
-        y: latCurtainY,
-        z: latCurtainZ,
-        surfacecolor: data.lat_slice,
-        colorscale: colorscale,
-        cmin: 4, cmax: 30,
-        colorbar: {
-          title: { text: "Temp (°C)", font: { color: "#94a3b8", size: 11, family: "Plus Jakarta Sans" } },
-          ticksuffix: "°C",
-          thickness: 14, len: 0.85, x: 1.01,
-          tickfont: { color: "#94a3b8", size: 10 },
-          bgcolor: "rgba(11,17,32,0.7)",
-          bordercolor: "rgba(56,189,248,0.3)",
-          borderwidth: 1
-        },
-        opacity: 0.95,
-        showscale: true,
-        contours: {
-          z: { show: true, usecolormap: true, highlightcolor: "#fbbf24", project: { z: false } }
-        }
-      });
+    const activePalette = buildActiveColorscale(colorscale);
 
-      // 2. Longitude Curtain: South->North at chosen Longitude
-      const lonCurtainX = depths.map(() => latsAll.map(() => studioLon));
-      const lonCurtainY = depths.map(() => latsAll);
-      const lonCurtainZ = depths.map(d => latsAll.map(() => -d));
+    // 2. Build composite colorscale for top surface (merges active ocean palette with realistic land terrain)
+    function buildCompositeColorscale(baseScale) {
+      const comp = [];
+      for (const [normVal, hexCol] of baseScale) {
+        comp.push([normVal * 0.75, hexCol]);
+      }
+      comp.push([0.775, "#0e3b20"]); // Coastal Mangrove Deep Green
+      comp.push([0.810, "#195c2b"]); // Peninsular India Dense Forest
+      comp.push([0.850, "#2d7a46"]); // Western Ghats Emerald
+      comp.push([0.890, "#9c7a4b"]); // Deccan Plateau Earth Savanna
+      comp.push([0.925, "#d49b4d"]); // Thar Desert Sand & Arabian Dunes
+      comp.push([0.960, "#664229"]); // Mountain Rock Ridges
+      comp.push([1.000, "#ffffff"]); // Himalayan Peak Snow White
+      return comp;
+    }
 
-      plotlyData.push({
-        type: "surface",
-        name: `Lon Curtain (${studioLon.toFixed(2)}°E)`,
-        x: lonCurtainX,
-        y: lonCurtainY,
-        z: lonCurtainZ,
-        surfacecolor: data.lon_slice,
-        colorscale: colorscale,
-        cmin: 4, cmax: 30,
-        opacity: 0.95,
-        showscale: false,
-        contours: {
-          z: { show: true, usecolormap: true, highlightcolor: "#fbbf24", project: { z: false } }
-        }
-      });
+    const compositeColorscale = buildCompositeColorscale(activePalette);
 
-      // 3. Surface 0.25° SST layer at Z = 0m
-      const subLats = data.sub_lats;
-      const subLons = data.sub_lons;
+    // Solid matte lighting eliminating milky glaze or washed-out translucency
+    const solidLighting = {
+      ambient: 0.96,
+      diffuse: 0.88,
+      specular: 0.04,
+      roughness: 0.5,
+      fresnel: 0.02
+    };
+
+    // Perceptual depth stretch so upper 200m thermocline is visually prominent as in template
+    const depthToZ = (d) => - (Math.pow(d / 1000, 0.65) * 1000);
+    const zDepths = depths.map(d => depthToZ(d));
+
+    // Update floating header date subtitle
+    const subElem = document.getElementById("template-date-subtitle");
+    if (subElem) subElem.textContent = `North Indian Ocean | ${data.date || studioDate || "2024-06-01"}`;
+
+    if (studioMode === "block" || studioMode === "curtains") {
+      // 1. South Boundary Wall (along 5°N from 45°E to 105°E down to 1000m) - 100% Solid
+      if (studioMode === "block" && wallOpacity > 0.01) {
+        const southX = zDepths.map(() => lonsAll);
+        const southY = zDepths.map(() => lonsAll.map(() => minLat));
+        const southZ = zDepths.map(z => lonsAll.map(() => z));
+
+        plotlyData.push({
+          type: "surface",
+          name: `South Boundary (5°N)`,
+          x: southX, y: southY, z: southZ,
+          surfacecolor: data.south_slice || data.lat_slice,
+          colorscale: activePalette,
+          cmin: 0, cmax: 30,
+          colorbar: {
+            orientation: "h",
+            x: 0.22, xanchor: "center",
+            y: 0.06, yanchor: "bottom",
+            len: 0.36, thickness: 15,
+            title: { text: "Temperature (°C)", font: { color: "#ffffff", size: 11, family: "Plus Jakarta Sans, sans-serif" }, side: "top" },
+            tickvals: [0, 5, 10, 15, 20, 25, 30],
+            ticktext: ["0", "5", "10", "15", "20", "25", "30"],
+            tickfont: { color: "#cbd5e1", size: 9 },
+            bgcolor: "rgba(6, 14, 31, 0.8)",
+            bordercolor: "rgba(56, 189, 248, 0.4)",
+            borderwidth: 1
+          },
+          opacity: wallOpacity,
+          showscale: true,
+          lighting: solidLighting
+        });
+
+        // 2. West Boundary Wall (along 45°E from 5°N to 30°N down to 1000m) - 100% Solid
+        const westX = zDepths.map(() => latsAll.map(() => minLon));
+        const westY = zDepths.map(() => latsAll);
+        const westZ = zDepths.map(z => latsAll.map(() => z));
+
+        plotlyData.push({
+          type: "surface",
+          name: `West Boundary (45°E)`,
+          x: westX, y: westY, z: westZ,
+          surfacecolor: data.west_slice || data.lon_slice,
+          colorscale: activePalette,
+          cmin: 0, cmax: 30,
+          opacity: wallOpacity,
+          showscale: false,
+          lighting: solidLighting
+        });
+
+        // 3. East Boundary Wall (along 105°E from 5°N to 30°N down to 1000m) - 100% Solid
+        const eastX = zDepths.map(() => latsAll.map(() => maxLon));
+        const eastY = zDepths.map(() => latsAll);
+        const eastZ = zDepths.map(z => latsAll.map(() => z));
+
+        plotlyData.push({
+          type: "surface",
+          name: `East Boundary (105°E)`,
+          x: eastX, y: eastY, z: eastZ,
+          surfacecolor: data.east_slice || data.lon_slice,
+          colorscale: activePalette,
+          cmin: 0, cmax: 30,
+          opacity: wallOpacity,
+          showscale: false,
+          lighting: solidLighting
+        });
+
+        // 4. North Boundary Wall (along 30°N from 45°E to 105°E down to 1000m) - 100% Solid
+        const northX = zDepths.map(() => lonsAll);
+        const northY = zDepths.map(() => lonsAll.map(() => maxLat));
+        const northZ = zDepths.map(z => lonsAll.map(() => z));
+
+        plotlyData.push({
+          type: "surface",
+          name: `North Boundary (30°N)`,
+          x: northX, y: northY, z: northZ,
+          surfacecolor: data.north_slice || data.lat_slice,
+          colorscale: activePalette,
+          cmin: 0, cmax: 30,
+          opacity: wallOpacity,
+          showscale: false,
+          lighting: solidLighting
+        });
+      }
+
+      // If curtains mode: show orthogonal interior cuts
+      if (studioMode === "curtains") {
+        const latCutX = zDepths.map(() => lonsAll);
+        const latCutY = zDepths.map(() => lonsAll.map(() => studioLat));
+        const latCutZ = zDepths.map(z => lonsAll.map(() => z));
+
+        plotlyData.push({
+          type: "surface",
+          name: `Lat Cut (${studioLat.toFixed(2)}°N)`,
+          x: latCutX, y: latCutY, z: latCutZ,
+          surfacecolor: data.lat_slice,
+          colorscale: activePalette,
+          cmin: 0, cmax: 30,
+          colorbar: {
+            orientation: "h",
+            x: 0.22, xanchor: "center",
+            y: 0.06, yanchor: "bottom",
+            len: 0.36, thickness: 15,
+            title: { text: "Temperature (°C)", font: { color: "#ffffff", size: 11, family: "Plus Jakarta Sans, sans-serif" }, side: "top" },
+            tickvals: [0, 5, 10, 15, 20, 25, 30],
+            ticktext: ["0", "5", "10", "15", "20", "25", "30"],
+            tickfont: { color: "#cbd5e1", size: 9 },
+            bgcolor: "rgba(6, 14, 31, 0.8)",
+            bordercolor: "rgba(56, 189, 248, 0.4)",
+            borderwidth: 1
+          },
+          opacity: 1.0,
+          showscale: true,
+          lighting: solidLighting
+        });
+
+        const lonCutX = zDepths.map(() => latsAll.map(() => studioLon));
+        const lonCutY = zDepths.map(() => latsAll);
+        const lonCutZ = zDepths.map(z => latsAll.map(() => z));
+
+        plotlyData.push({
+          type: "surface",
+          name: `Lon Cut (${studioLon.toFixed(2)}°E)`,
+          x: lonCutX, y: lonCutY, z: lonCutZ,
+          surfacecolor: data.lon_slice,
+          colorscale: activePalette,
+          cmin: 0, cmax: 30,
+          opacity: 1.0,
+          showscale: false,
+          lighting: solidLighting
+        });
+
+        // Probe marker
+        plotlyData.push({
+          type: "scatter3d",
+          mode: "lines+markers",
+          name: `Probe Fix (${studioLat.toFixed(2)}°N, ${studioLon.toFixed(2)}°E)`,
+          x: [studioLon, studioLon],
+          y: [studioLat, studioLat],
+          z: [0, -1000],
+          line: { color: "#fbbf24", width: 8 },
+          marker: { size: [9, 5], color: ["#fbbf24", "#ef4444"] },
+          showlegend: true
+        });
+      }
+
+      // Top Face: Composite Ocean Temperature + Geographic Satellite Map of India & South Asia (Z = 0m)
+      const subLats = data.sub_lats || data.lats_sub;
+      const subLons = data.sub_lons || data.lons_sub;
       const surfX = subLats.map(() => subLons);
       const surfY = subLats.map(latVal => subLons.map(() => latVal));
       const surfZ = subLats.map(() => subLons.map(() => 0));
 
       plotlyData.push({
         type: "surface",
-        name: "Satellite SST (0m)",
+        name: "Satellite Map + Ocean SST",
         x: surfX,
         y: surfY,
         z: surfZ,
-        surfacecolor: data.surface_sst,
-        colorscale: colorscale,
-        cmin: 4, cmax: 30,
-        opacity: 0.72,
-        showscale: false
+        surfacecolor: data.top_composite_surface || data.surface_sst,
+        colorscale: compositeColorscale,
+        cmin: 0, cmax: 40,
+        opacity: 1.0,
+        showscale: false,
+        lighting: solidLighting
       });
 
+      // 5. Seafloor Base Floor (Z = -1000m) - Closes the cube so inside is completely solid
+      if (studioMode === "block") {
+        const botX = subLats.map(() => subLons);
+        const botY = subLats.map(latVal => subLons.map(() => latVal));
+        const botZ = subLats.map(() => subLons.map(() => depthToZ(1000)));
+
+        plotlyData.push({
+          type: "surface",
+          name: "Seafloor Base (1000m)",
+          x: botX,
+          y: botY,
+          z: botZ,
+          surfacecolor: data.bottom_slice || subLats.map(() => subLons.map(() => 5.2)),
+          colorscale: activePalette,
+          cmin: 0,
+          cmax: 30,
+          opacity: wallOpacity,
+          showscale: false,
+          lighting: solidLighting
+        });
+      }
+
+      // Coastline vector overlay tracing peninsular India and subcontinent
+      if (data.coastlines && data.coastlines.lats && data.coastlines.lats.length > 0) {
+        plotlyData.push({
+          type: "scatter3d",
+          mode: "markers",
+          name: "Coastlines & Borders",
+          x: data.coastlines.lons,
+          y: data.coastlines.lats,
+          z: data.coastlines.lats.map(() => 0.8),
+          marker: { size: 2.2, color: "#ffffff", opacity: 1.0 },
+          showlegend: false
+        });
+      }
+
       sceneConfig = {
-        xaxis: { title: { text: "Longitude (°E)", font: { color: axisColor, size: 10 } }, tickfont: { color: tickColor, size: 9 }, gridcolor: gridCol, backgroundcolor: "rgba(6,14,31,0.7)" },
-        yaxis: { title: { text: "Latitude (°N)", font: { color: axisColor, size: 10 } }, tickfont: { color: tickColor, size: 9 }, gridcolor: gridCol, backgroundcolor: "rgba(6,14,31,0.7)" },
-        zaxis: { title: { text: "Depth (m)", font: { color: axisColor, size: 10 } }, tickfont: { color: tickColor, size: 9 }, gridcolor: gridCol, backgroundcolor: "rgba(6,14,31,0.7)" },
-        camera: { eye: { x: 1.6, y: -1.7, z: 1.1 }, up: { x: 0, y: 0, z: 1 } },
+        xaxis: {
+          title: { text: "", font: { color: axisColor, size: 10 } },
+          tickvals: [45, 60, 75, 90, 105],
+          ticktext: ["45°E", "60°E", "75°E", "90°E", "105°E"],
+          range: [45, 105],
+          tickfont: { color: "#e2e8f0", size: 10, family: "Plus Jakarta Sans, sans-serif" },
+          gridcolor: "rgba(56,189,248,0.18)",
+          showgrid: true,
+          zeroline: false,
+          showbackground: true,
+          backgroundcolor: "rgba(6,14,31,0.95)"
+        },
+        yaxis: {
+          title: { text: "", font: { color: axisColor, size: 10 } },
+          tickvals: [10, 15, 20, 25, 30],
+          ticktext: ["10°N", "15°N", "20°N", "25°N", "30°N"],
+          range: [5, 30],
+          tickfont: { color: "#e2e8f0", size: 10, family: "Plus Jakarta Sans, sans-serif" },
+          gridcolor: "rgba(56,189,248,0.18)",
+          showgrid: true,
+          zeroline: false,
+          showbackground: true,
+          backgroundcolor: "rgba(6,14,31,0.95)"
+        },
+        zaxis: {
+          title: { text: "Depth (m)", font: { color: "#ffffff", size: 12, family: "Plus Jakarta Sans, sans-serif" } },
+          tickvals: [depthToZ(0), depthToZ(50), depthToZ(100), depthToZ(200), depthToZ(300), depthToZ(500), depthToZ(700), depthToZ(1000)],
+          ticktext: ["0", "50", "100", "200", "300", "500", "700", "1000"],
+          range: [-1000, 0],
+          tickfont: { color: "#e2e8f0", size: 10, family: "Plus Jakarta Sans, sans-serif" },
+          gridcolor: "rgba(56,189,248,0.18)",
+          showgrid: true,
+          zeroline: false,
+          showbackground: true,
+          backgroundcolor: "rgba(6,14,31,0.95)"
+        },
+        camera: {
+          eye: { x: 1.45, y: -1.75, z: 0.95 },
+          center: { x: 0, y: 0, z: -0.22 },
+          up: { x: 0, y: 0, z: 1 }
+        },
         aspectmode: "manual",
-        aspectratio: { x: 2.0, y: 1.2, z: 0.8 }
+        aspectratio: { x: 1.55, y: 1.25, z: 0.92 }
       };
 
     } else if (studioMode === "surface") {
-      // ────────────────────────────────────────────────────────────
-      // MODE 2: 0.25° Transect Thermal Surface (Depth × Coordinate)
-      // ────────────────────────────────────────────────────────────
       const isLat = (studioAxis === "lat");
       const coords = isLat ? data.lons_all : data.lats_all;
       const matrix = isLat ? data.lat_slice : data.lon_slice;
@@ -1039,14 +1362,17 @@ async function renderStudio3D() {
         x: coords,
         y: data.depths,
         z: matrix,
-        colorscale: colorscale,
-        opacity: 0.94,
+        colorscale: activePalette,
+        opacity: 1.0,
         colorbar: {
-          title: { text: "Temp (°C)", font: { color: "#94a3b8", size: 11, family: "Plus Jakarta Sans" } },
+          orientation: "h",
+          x: 0.5, xanchor: "center",
+          y: -0.12, yanchor: "top",
+          len: 0.8, thickness: 16,
+          title: { text: "Temperature (°C)", font: { color: "#f8fafc", size: 12, family: "Plus Jakarta Sans" } },
           ticksuffix: "°C",
-          thickness: 14, len: 0.85, x: 1.01,
-          tickfont: { color: "#94a3b8", size: 10 },
-          bgcolor: "rgba(11,17,32,0.7)", bordercolor: "rgba(56,189,248,0.3)", borderwidth: 1
+          tickfont: { color: "#cbd5e1", size: 10 },
+          bgcolor: "rgba(11,17,32,0.85)", bordercolor: "rgba(56,189,248,0.3)", borderwidth: 1
         },
         contours: {
           x: { show: true, highlightcolor: "#38bdf8", width: 2, color: "rgba(56,189,248,0.25)" },
@@ -1056,73 +1382,110 @@ async function renderStudio3D() {
         lighting: { ambient: 0.7, diffuse: 0.8, roughness: 0.5, fresnel: 0.2 }
       });
 
+      // Target location vertical line on transect surface
+      const targetCoord = isLat ? studioLon : studioLat;
+      plotlyData.push({
+        type: "scatter3d",
+        mode: "lines+markers",
+        name: `Location Fix (${targetCoord.toFixed(2)}°)`,
+        x: [targetCoord, targetCoord],
+        y: [0, 1000],
+        z: [30, 4],
+        line: { color: "#fbbf24", width: 6 },
+        marker: { size: 8, color: "#fbbf24" }
+      });
+
       sceneConfig = {
         xaxis: { title: { text: xLabel, font: { color: axisColor, size: 10 } }, tickfont: { color: tickColor, size: 9 }, gridcolor: gridCol, backgroundcolor: "rgba(6,14,31,0.7)" },
         yaxis: { title: { text: "Depth (meters)", font: { color: axisColor, size: 10 } }, autorange: "reversed", tickfont: { color: tickColor, size: 9 }, gridcolor: gridCol, backgroundcolor: "rgba(6,14,31,0.7)" },
         zaxis: { title: { text: "Temp (°C)", font: { color: axisColor, size: 10 } }, tickfont: { color: tickColor, size: 9 }, gridcolor: gridCol, backgroundcolor: "rgba(6,14,31,0.7)" },
-        camera: { eye: { x: 1.55, y: 1.55, z: 1.1 }, up: { x: 0, y: 0, z: 1 } },
+        camera: {
+          eye: { x: 1.3, y: 1.3, z: 0.8 },
+          center: { x: 0, y: 0, z: 0 },
+          up: { x: 0, y: 0, z: 1 }
+        },
         aspectmode: "manual",
-        aspectratio: { x: 2.2, y: 0.7, z: 0.7 }
+        aspectratio: { x: 2.0, y: 0.9, z: 0.8 }
       };
 
     } else if (studioMode === "d20") {
-      // ────────────────────────────────────────────────────────────
-      // MODE 3: D20 Thermocline Topography (20°C Isotherm Depth)
-      // ────────────────────────────────────────────────────────────
       plotlyData.push({
         type: "surface",
         name: "D20 Thermocline Depth",
         x: data.sub_lons,
         y: data.sub_lats,
         z: data.d20_thermocline,
-        colorscale: "Viridis",
+        colorscale: activePalette,
         reversescale: true,
-        opacity: 0.95,
+        opacity: 1.0,
         colorbar: {
-          title: { text: "D20 Depth (m)", font: { color: "#94a3b8", size: 11, family: "Plus Jakarta Sans" } },
+          orientation: "h",
+          x: 0.5, xanchor: "center",
+          y: -0.12, yanchor: "top",
+          len: 0.8, thickness: 16,
+          title: { text: "D20 Depth (m)", font: { color: "#f8fafc", size: 12, family: "Plus Jakarta Sans" } },
           ticksuffix: "m",
-          thickness: 14, len: 0.85, x: 1.01,
-          tickfont: { color: "#94a3b8", size: 10 },
-          bgcolor: "rgba(11,17,32,0.7)", bordercolor: "rgba(56,189,248,0.3)", borderwidth: 1
+          tickfont: { color: "#cbd5e1", size: 10 },
+          bgcolor: "rgba(11,17,32,0.85)", bordercolor: "rgba(56,189,248,0.3)", borderwidth: 1
         },
         contours: {
           z: { show: true, usecolormap: true, highlightcolor: "#38bdf8", project: { z: true } }
         }
       });
 
+      // Target Pin on D20 surface
+      plotlyData.push({
+        type: "scatter3d",
+        mode: "markers+text",
+        name: `D20 Pin (${studioLat.toFixed(2)}°N, ${studioLon.toFixed(2)}°E)`,
+        x: [studioLon],
+        y: [studioLat],
+        z: [100],
+        marker: { size: 12, color: "#f59e0b", symbol: "diamond" }
+      });
+
       sceneConfig = {
         xaxis: { title: { text: "Longitude (°E)", font: { color: axisColor, size: 10 } }, tickfont: { color: tickColor, size: 9 }, gridcolor: gridCol, backgroundcolor: "rgba(6,14,31,0.7)" },
         yaxis: { title: { text: "Latitude (°N)", font: { color: axisColor, size: 10 } }, tickfont: { color: tickColor, size: 9 }, gridcolor: gridCol, backgroundcolor: "rgba(6,14,31,0.7)" },
         zaxis: { title: { text: "D20 Depth (m)", font: { color: axisColor, size: 10 } }, autorange: "reversed", tickfont: { color: tickColor, size: 9 }, gridcolor: gridCol, backgroundcolor: "rgba(6,14,31,0.7)" },
-        camera: { eye: { x: 1.5, y: -1.6, z: 1.2 }, up: { x: 0, y: 0, z: 1 } },
+        camera: {
+          eye: { x: 1.3, y: -1.3, z: 0.8 },
+          center: { x: 0, y: 0, z: 0 },
+          up: { x: 0, y: 0, z: 1 }
+        },
         aspectmode: "manual",
-        aspectratio: { x: 2.0, y: 1.2, z: 0.6 }
+        aspectratio: { x: 1.8, y: 1.2, z: 0.8 }
       };
     }
 
-    const titleModeName = studioMode === "curtains" ? "Orthogonal Curtains (SST Surface + Depth Curtains)"
+    const titleModeName = studioMode === "block"    ? "3D Reconstruction of Ocean Temperature (Volumetric Block)"
+                        : studioMode === "curtains" ? "Orthogonal Curtains (SST Surface + Depth Curtains)"
                         : studioMode === "surface"  ? `0.25° Transect Thermal Surface (${studioAxis === "lat" ? studioLat.toFixed(2)+"°N" : studioLon.toFixed(2)+"°E"})`
                         :                             "D20 Thermocline Depth Topography (20°C Isotherm)";
 
     const layout = {
-      title: {
-        text: `OceanEmbedNet 3D — ${titleModeName} | ${studioDate || "2024-06-01"}`,
-        font: { color: "#e2e8f0", size: 11, family: "Plus Jakarta Sans" },
+      title: studioMode === "block" ? false : {
+        text: `${titleModeName}<br><span style="font-size:11px; color:#94a3b8;">North Indian Ocean | ${studioDate || "2024-06-01"} | Center: ${studioLat.toFixed(2)}°N, ${studioLon.toFixed(2)}°E</span>`,
+        font: { color: "#f8fafc", size: 14, family: "Plus Jakarta Sans" },
         x: 0.5, y: 0.98
       },
-      margin: { l: 0, r: 0, b: 0, t: 36 },
+      margin: { l: 0, r: 0, b: 0, t: studioMode === "block" ? 0 : 25 },
       paper_bgcolor: bgColor,
       plot_bgcolor: bgColor,
+      showlegend: studioMode === "curtains",
+      legend: {
+        x: 0.01,
+        y: 0.05,
+        orientation: "h",
+        bgcolor: "rgba(11,17,32,0.85)",
+        bordercolor: "rgba(56,189,248,0.3)",
+        borderwidth: 1,
+        font: { color: "#f8fafc", size: 10, family: "Plus Jakarta Sans" }
+      },
       scene: {
         bgcolor: bgColor,
         ...sceneConfig
-      },
-      annotations: [{
-        x: 0.01, y: 0.02, xref: "paper", yref: "paper",
-        text: "OceanEmbedNet (7-ch Satellite → 15 Depths @ 0.25°) — SIH 26066 — GLORYS12V1",
-        font: { color: "#64748b", size: 9, family: "Plus Jakarta Sans" },
-        showarrow: false
-      }]
+      }
     };
 
     container.innerHTML = "";
@@ -1138,10 +1501,40 @@ async function renderStudio3D() {
     };
     Plotly.newPlot("plotly-3d-studio-container", plotlyData, layout, config);
 
+    // Dynamic Compass Needle Rotation on 3D Camera Orbit
+    const graphDiv = document.getElementById("plotly-3d-studio-container");
+    if (graphDiv && graphDiv.on) {
+      graphDiv.on("plotly_relayout", function(ed) {
+        if (ed["scene.camera"] && ed["scene.camera"].eye) {
+          const eye = ed["scene.camera"].eye;
+          const angleRad = Math.atan2(eye.x, -eye.y);
+          const angleDeg = angleRad * (180 / Math.PI);
+          const needle = document.getElementById("compass-needle");
+          if (needle) needle.style.transform = `rotate(${angleDeg}deg)`;
+        }
+      });
+    }
+
   } catch (err) {
     container.innerHTML = `<div style="color:#f87171; padding:30px; background:#060e1f; border-radius:14px; font-family:Plus Jakarta Sans,sans-serif;"><i class="fa-solid fa-triangle-exclamation"></i> Error rendering 3D visualization: ${err.message}</div>`;
     console.error("Error rendering 3D Studio:", err);
   }
+}
+
+/* Interactive 3D Camera Rotation via Compass (N, S, E, W, Reset) */
+function setCompassCamera(dir) {
+  const container = document.getElementById("plotly-3d-studio-container");
+  if (!container || !container._fullLayout) return;
+
+  let eye = { x: 1.4, y: -1.4, z: 0.9 };
+  if (dir === 'N') eye = { x: 0, y: -2.4, z: 0.4 };
+  else if (dir === 'S') eye = { x: 0, y: 2.4, z: 0.4 };
+  else if (dir === 'E') eye = { x: -2.4, y: 0, z: 0.4 };
+  else if (dir === 'W') eye = { x: 2.4, y: 0, z: 0.4 };
+
+  Plotly.relayout(container, {
+    'scene.camera.eye': eye
+  });
 }
 
 

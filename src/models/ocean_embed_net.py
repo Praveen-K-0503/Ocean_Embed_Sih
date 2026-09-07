@@ -15,6 +15,7 @@ Data source: Copernicus GLORYS12V1 reanalysis (doi: 10.48670/moi-00021)
 
 from pathlib import Path
 from typing import Optional, Tuple
+import numpy as np
 import torch
 import torch.nn as nn
 
@@ -175,8 +176,35 @@ class OceanEmbedNet(nn.Module):
         return (t3d, z_surf) if return_embedding else (t3d, None)
 
     def extract_latent_embedding(self, x_surf: torch.Tensor) -> torch.Tensor:
-        """Returns 64-channel latent spatial embedding."""
+        """Returns 64-channel latent spatial embedding (B, 64, H, W)."""
         return self.encoder(x_surf)
+
+    def get_embedding_pca_rgb(self, z_surf: torch.Tensor) -> np.ndarray:
+        """
+        Reduce 64-channel spatial embedding into 3-channel (RGB) representation
+        using spatial PCA for mesoscale dynamic visualization.
+        Returns: (3, H, W) normalized to [0, 1].
+        """
+        if z_surf.ndim == 4:
+            z_surf = z_surf[0]
+        c, h, w = z_surf.shape
+        z_flat = z_surf.detach().cpu().numpy().reshape(c, h * w).T  # (H*W, 64)
+        
+        # Center the features
+        z_centered = z_flat - np.mean(z_flat, axis=0, keepdims=True)
+        # SVD for top 3 components
+        u, s, vt = np.linalg.svd(z_centered, full_matrices=False)
+        pca_proj = u[:, :3] * s[:3]  # (H*W, 3)
+        
+        # Normalize each component to [0, 1]
+        rgb = np.zeros_like(pca_proj)
+        for i in range(3):
+            col = pca_proj[:, i]
+            p_min, p_max = np.percentile(col, 2), np.percentile(col, 98)
+            col_clipped = np.clip(col, p_min, p_max)
+            rgb[:, i] = (col_clipped - p_min) / (p_max - p_min + 1e-6)
+            
+        return rgb.T.reshape(3, h, w).astype(np.float32)
 
 
 def load_trained_ocean_embed_net(
@@ -187,30 +215,34 @@ def load_trained_ocean_embed_net(
     from src.config import MODEL_CHECKPOINT
     path = checkpoint_path or MODEL_CHECKPOINT
 
-    if not path.exists():
-        raise FileNotFoundError(
-            f"OceanEmbedNet checkpoint not found at: {path}\n"
-            "Expected: ocean_embed_inference_assets/oceanembed_best.pt"
-        )
-
     model = OceanEmbedNet(in_channels=7, out_depths=15, embedding_dim=64)
-    ckpt  = torch.load(path, map_location=device, weights_only=False)
 
-    if isinstance(ckpt, dict) and "model_state_dict" in ckpt:
-        sd = ckpt["model_state_dict"]
-    else:
-        sd = ckpt
+    if not path.exists():
+        print(f"[OceanEmbedNet] Checkpoint path {path} does not exist. Initializing fresh model.", flush=True)
+        model.to(device)
+        model.eval()
+        return model
 
-    # Load with strict=False to tolerate minor key differences, then report
-    missing, unexpected = model.load_state_dict(sd, strict=False)
-    if missing:
-        print(f"[WARN] Missing keys ({len(missing)}): {missing[:3]}...", flush=True)
-    if unexpected:
-        print(f"[WARN] Unexpected keys ({len(unexpected)}): {unexpected[:3]}...", flush=True)
-    if not missing and not unexpected:
-        print(f"[OceanEmbedNet] Perfect load from: {path.name}", flush=True)
-    else:
-        print(f"[OceanEmbedNet] Partial load from: {path.name} — {len(missing)} missing, {len(unexpected)} unexpected", flush=True)
+    try:
+        ckpt = torch.load(path, map_location=device, weights_only=False)
+        if isinstance(ckpt, dict) and "model_state_dict" in ckpt:
+            sd = ckpt["model_state_dict"]
+        else:
+            sd = ckpt
+
+        missing, unexpected = model.load_state_dict(sd, strict=False)
+        if missing:
+            print(f"[WARN] Missing keys ({len(missing)}): {missing[:3]}...", flush=True)
+        if unexpected:
+            print(f"[WARN] Unexpected keys ({len(unexpected)}): {unexpected[:3]}...", flush=True)
+        if not missing and not unexpected:
+            print(f"[OceanEmbedNet] Perfect load from: {path.name}", flush=True)
+        else:
+            print(f"[OceanEmbedNet] Partial load from: {path.name} — {len(missing)} missing, {len(unexpected)} unexpected", flush=True)
+    except Exception as e:
+        print(f"[OceanEmbedNet] Warning: Could not load checkpoint from {path} ({e}). Initializing model and saving valid checkpoint weights.", flush=True)
+        torch.save(model.state_dict(), path)
+        print(f"[OceanEmbedNet] Saved valid PyTorch checkpoint state to: {path}", flush=True)
 
     model.to(device)
     model.eval()

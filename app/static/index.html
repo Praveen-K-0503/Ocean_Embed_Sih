@@ -30,13 +30,11 @@
       <i class="fa-solid fa-moon" id="login-theme-icon"></i>
     </button>
 
-    <!-- 3D Spline Interactive Ocean Waves Background -->
+    <!-- 3D Spline Interactive Ocean Waves Background + Canvas Fallback -->
     <div class="spline-container">
       <iframe id="spline-iframe" src="https://my.spline.design/ocean-v65TrYXSTK6XDNjAxmYKTf31/" frameborder="0" width="100%" height="100%" allow="autoplay; fullscreen"></iframe>
-      <div class="ocean-bg-anim">
-        <div class="ocean-wave wave1"></div>
-        <div class="ocean-wave wave2"></div>
-        <div class="ocean-wave wave3"></div>
+      <div class="ocean-canvas-container">
+        <canvas id="ocean-wave-canvas"></canvas>
         <div class="ocean-depth-gradient"></div>
       </div>
     </div>
@@ -85,9 +83,8 @@
       <div class="login-card" id="interactive-login-card">
         <div class="login-brand">
           <div class="login-logo-glow"></div>
-          <div class="login-logo"><i class="fa-solid fa-gem"></i></div>
           <h1 class="cursive-welcome">Welcome to</h1>
-          <h2>OceanEmbed</h2>
+          <h2 class="stylish-brand-title">Ocean<span class="brand-accent">Embed</span></h2>
           <p class="login-subtitle">Deep OceanEmbedNet 3D Ocean Intelligence</p>
           <p class="cursive-tagline">"Bridging Satellite Surface Data to 1000m Deep Ocean Physics"</p>
         </div>
@@ -125,10 +122,7 @@
       <!-- Luxury Top Navbar with Page Navigation -->
       <header class="navbar">
         <div class="brand">
-          <div class="logo-icon"><i class="fa-solid fa-water"></i></div>
-          <div class="brand-text">
-            <h1>OceanEmbed <span class="version-tag">OceanEmbedNet 7-Ch Real-Time</span></h1>
-          </div>
+          <h1 class="stylish-brand-title">Ocean<span class="brand-accent">Embed</span></h1>
         </div>
 
         <!-- Page Navigation Tabs -->
@@ -144,24 +138,16 @@
         <div class="nav-metrics">
           <div class="metric-chip">
             <span class="chip-label">RMSE</span>
-            <span class="chip-value highlight" id="nav-rmse">0.992 °C</span>
+            <span class="chip-value highlight" id="nav-rmse">0.797 °C</span>
           </div>
           <div class="metric-chip">
             <span class="chip-label">Correlation r</span>
-            <span class="chip-value" id="nav-corr">0.4016</span>
-          </div>
-          <div class="metric-chip">
-            <span class="chip-label">Mean Bias</span>
-            <span class="chip-value" id="nav-bias">-- °C</span>
-          </div>
-          <div class="metric-chip">
-            <span class="chip-label">vs SST Baseline</span>
-            <span class="chip-value badge-success" id="nav-impr">34.0% ↓</span>
+            <span class="chip-value" id="nav-corr">0.894</span>
           </div>
           <!-- Dataset Mode Badge -->
           <div class="metric-chip dataset-mode-chip" id="nav-dataset-badge" title="Active Satellite Dataset">
             <span class="chip-label">DATASET</span>
-            <span class="chip-value highlight" id="nav-dataset-name"><i class="fa-solid fa-satellite"></i> CMEMS 2018 (182 Days)</span>
+            <span class="chip-value highlight" id="nav-dataset-name"><i class="fa-solid fa-satellite"></i> SIH_Final_Data (1,096 Days)</span>
           </div>
           <!-- Theme Toggle Button -->
           <button class="btn-theme-toggle" id="btn-theme-toggle" onclick="toggleTheme()" title="Toggle Light / Dark Mode">
@@ -185,8 +171,7 @@
                 <div class="form-group dataset-group">
                   <label><i class="fa-solid fa-database"></i> Dataset Source</label>
                   <select id="select-dataset-mode" class="dataset-select" onchange="changeDatasetMode(this.value)">
-                    <option value="2018" selected>Historical CMEMS Benchmark (2018 - 182 Days)</option>
-                    <option value="2024">Operational Real-Time PoC (2024 - 10 Days)</option>
+                    <option value="2022_2024" selected>SIH_Final_Data (2022–2024 Daily 0.25° · 1,096 Days)</option>
                   </select>
                 </div>
                 <div class="form-group">
@@ -513,8 +498,7 @@
           <!-- 3D Studio Top Header Bar -->
           <div class="studio-header">
             <div class="studio-title">
-              <h2><i class="fa-solid fa-cube"></i> OceanEmbed 3D Volumetric Reconstruction Studio</h2>
-              <p>OceanEmbedNet 7-Channel — Subsurface Ocean Temperature Volume (Lon × Depth × Temp °C) | North Indian Ocean Basin</p>
+              <h2><i class="fa-solid fa-cube"></i> 3D Volumetric Studio</h2>
             </div>
           </div>
 
@@ -523,8 +507,7 @@
             <div class="studio-control-item">
               <label><i class="fa-solid fa-database"></i> Dataset Source</label>
               <select id="studio-dataset-mode" onchange="changeDatasetMode(this.value)">
-                <option value="2018" selected>Historical CMEMS (2018)</option>
-                <option value="2024">Operational PoC (2024)</option>
+                <option value="2022_2024" selected>SIH_Final_Data (2022–2024)</option>
               </select>
             </div>
             <div class="studio-control-item">
@@ -536,18 +519,29 @@
             <div class="studio-control-item">
               <label><i class="fa-solid fa-cubes"></i> 3D Reconstruction Mode</label>
               <select id="studio-mode" onchange="renderStudio3D()">
-                <option value="curtains">Orthogonal Curtains (SST Surface + Depth Curtains)</option>
+                <option value="block" selected>Full 3D Volumetric Ocean Block (5°N–30°N, 45°E–105°E)</option>
+                <option value="curtains">Orthogonal Curtains (SST Surface + Center Cut Curtains)</option>
                 <option value="surface">0.25° Transect Thermal Surface (Depth × Coordinate)</option>
                 <option value="d20">D20 Thermocline Topography (20°C Isotherm Depth)</option>
               </select>
             </div>
             <div class="studio-control-item">
-              <label><i class="fa-solid fa-location-crosshairs"></i> Latitude (°N)</label>
-              <input type="number" id="studio-lat" value="15.0" min="5" max="30" step="0.25" onchange="renderStudio3D()">
+              <label><i class="fa-solid fa-location-crosshairs"></i> Latitude (°N): <span id="studio-lat-badge" style="color:#38bdf8; font-weight:700;">15.00°N</span></label>
+              <input type="number" id="studio-lat" value="15.0" min="5" max="30" step="0.25" style="width:100%; background:#0b1329; border:1px solid #1e293b; color:#fff; padding:6px 10px; border-radius:6px;" onchange="renderStudio3D()">
+              <input type="range" id="studio-lat-range" min="5" max="30" step="0.25" value="15.0" style="width:100%; margin-top:6px; cursor:pointer; accent-color:#38bdf8;" oninput="document.getElementById('studio-lat').value=this.value; document.getElementById('studio-lat-badge').textContent=parseFloat(this.value).toFixed(2)+'°N'; renderStudio3D();">
             </div>
             <div class="studio-control-item">
-              <label><i class="fa-solid fa-location-crosshairs"></i> Longitude (°E)</label>
-              <input type="number" id="studio-lon" value="65.0" min="45" max="105" step="0.25" onchange="renderStudio3D()">
+              <label><i class="fa-solid fa-location-crosshairs"></i> Longitude (°E): <span id="studio-lon-badge" style="color:#38bdf8; font-weight:700;">65.00°E</span></label>
+              <input type="number" id="studio-lon" value="65.0" min="45" max="105" step="0.25" style="width:100%; background:#0b1329; border:1px solid #1e293b; color:#fff; padding:6px 10px; border-radius:6px;" onchange="renderStudio3D()">
+              <input type="range" id="studio-lon-range" min="45" max="105" step="0.25" value="65.0" style="width:100%; margin-top:6px; cursor:pointer; accent-color:#38bdf8;" oninput="document.getElementById('studio-lon').value=this.value; document.getElementById('studio-lon-badge').textContent=parseFloat(this.value).toFixed(2)+'°E'; renderStudio3D();">
+            </div>
+            <div class="studio-control-item">
+              <label><i class="fa-solid fa-cube"></i> Volumetric Opacity & Solid Fill</label>
+              <select id="studio-wall-opacity" onchange="renderStudio3D()">
+                <option value="1.0" selected>100% Solid & Intense (Template Match)</option>
+                <option value="0.90">90% High Density</option>
+                <option value="0.75">75% Medium</option>
+              </select>
             </div>
             <div class="studio-control-item">
               <label><i class="fa-solid fa-layer-group"></i> Transect Cut</label>
@@ -566,6 +560,7 @@
                 <option value="RdBu">RdBu (Diverging)</option>
               </select>
             </div>
+
             <button class="btn-studio-render" onclick="renderStudio3D()"><i class="fa-solid fa-rotate"></i> Re-Render</button>
           </div>
 
@@ -618,30 +613,6 @@
                 </div>
               </div>
 
-              <!-- Problem Statement Specifications Card -->
-              <div class="studio-specs-card">
-                <h5><i class="fa-solid fa-bullseye"></i> Problem Statement (SIH 26066)</h5>
-                <ul class="studio-specs-list">
-                  <li><span>Resolution:</span> <strong>0.25° × 0.25° Daily</strong></li>
-                  <li><span>Domain:</span> <strong>5°N–30°N, 45°E–105°E</strong></li>
-                  <li><span>Channels:</span> <strong>7 Surface Variables</strong></li>
-                  <li><span>Depths:</span> <strong>15 Levels (0–1000m)</strong></li>
-                  <li><span>Embeddings:</span> <strong>64-ch Spatial Latent</strong></li>
-                  <li><span>Benchmark:</span> <strong>INCOIS ARGO Array</strong></li>
-                </ul>
-              </div>
-
-              <!-- Color legend -->
-              <div class="studio-temp-legend">
-                <span class="legend-title">Temp. Scale (°C)</span>
-                <div class="legend-gradient"></div>
-                <div class="legend-labels">
-                  <span>30°C</span>
-                  <span>22°C</span>
-                  <span>14°C</span>
-                  <span>4°C</span>
-                </div>
-              </div>
               <!-- Depth info -->
               <div class="studio-depth-info">
                 <div class="depth-layer"><span class="dl-col" style="background:#ef4444"></span><span>0–30m Epipelagic</span></div>
@@ -653,6 +624,21 @@
 
             <!-- Right: Fullscreen Interactive 3D Plotly Volumetric Canvas -->
             <div class="studio-canvas-wrapper">
+              <!-- Design Template Matching Header -->
+              <div class="studio-template-header">
+                <div class="template-title">3D Reconstruction of Ocean Temperature</div>
+                <div class="template-subtitle" id="template-date-subtitle">North Indian Ocean | 2024-06-01</div>
+              </div>
+
+              <div class="compass-rose-overlay" title="Interactive 3D Compass — Click N, S, E, W to rotate 3D view or center dial to reset">
+                <div class="compass-rose">
+                  <span class="c-point c-n" onclick="setCompassCamera('N')" title="Look from South to North">N</span>
+                  <span class="c-point c-w" onclick="setCompassCamera('W')" title="Look from East to West">W</span>
+                  <span class="c-point c-e" onclick="setCompassCamera('E')" title="Look from West to East">E</span>
+                  <span class="c-point c-s" onclick="setCompassCamera('S')" title="Look from North to South">S</span>
+                  <i class="fa-solid fa-compass compass-icon" id="compass-needle" onclick="setCompassCamera('RESET')" title="Reset 3D Camera View"></i>
+                </div>
+              </div>
               <div id="plotly-3d-studio-container" style="width:100%; height:100%;"></div>
             </div>
           </div>
@@ -667,10 +653,7 @@
               <span class="d-label">Depth:</span>
               <strong class="d-val">0–1000m — 15 Standard Levels</strong>
             </div>
-            <div class="drawer-stat">
-              <span class="d-label">Model:</span>
-              <strong class="d-val highlight">OceanEmbedNet 7-ch (SIH 26066)</strong>
-            </div>
+
             <div class="drawer-stat">
               <span class="d-label">Data:</span>
               <strong class="d-val">Copernicus GLORYS12V1 — 0.25°/day</strong>
@@ -684,9 +667,7 @@
       </div>
 
       <!-- Footer -->
-      <footer class="footer">
-        <p>OceanEmbed Intelligence Platform &copy; 2026</p>
-      </footer>
+      <footer class="footer"></footer>
     </div>
   </div>
 

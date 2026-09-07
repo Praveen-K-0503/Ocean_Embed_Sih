@@ -1,295 +1,126 @@
+"""
+PyTorch Dataset Pipeline for OceanEmbed (SIH Problem 26066 — MoES / INCOIS).
+Directly loads SIH_Final_Data (Final_Training_Dataset_2022_2024.nc).
+Provides 7-channel surface inputs and 15-depth target temperature fields.
+"""
+
 from pathlib import Path
-
-# pyrefly: ignore [missing-import]
+import sys
+from typing import Dict, List, Optional, Tuple
+import h5py
 import numpy as np
-
-# pyrefly: ignore [missing-import]
-import xarray as xr
-
+import torch
+from torch.utils.data import Dataset, DataLoader
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
 
-DATA_PATH = (
-    ROOT
-    / "data"
-    / "processed"
-    / "normalized"
-    / "nio_normalized_trainstats_1992-2021.nc"
-)
-
-INPUT_VARIABLES = [
-    "sst",
-    "ssh",
-    "u_wind",
-    "v_wind",
-]
-
-TARGET_VARIABLE = "subsurface_temperature"
-
-SEQUENCE_LENGTH = 6
+from src.config import SIH_FINAL_TRAINING_NC, SURFACE_VARIABLES, STANDARD_DEPTHS, N_LAT, N_LON
+from src.data.preprocessor import OceanPreprocessor
 
 
-def load_dataset():
+class SIHOceanDataset(Dataset):
+    """
+    PyTorch Dataset directly streaming from SIH_Final_Data (1,096 daily timesteps).
+    Split options:
+      - 'train': 2022-01-01 to 2023-12-31 (730 timesteps)
+      - 'val':   2024-01-01 to 2024-06-30 (182 timesteps)
+      - 'test':  2024-07-01 to 2024-12-31 (184 timesteps)
+      - 'all':   All 1,096 timesteps
+    """
 
-    print("=" * 70)
-    print("OceanEmbed — Training Dataset Builder")
-    print("=" * 70)
-
-    print("\nReading:")
-    print(DATA_PATH)
-
-    ds = xr.open_dataset(DATA_PATH)
-
-    print("\nDimensions:")
-    print(dict(ds.sizes))
-
-    return ds
-
-
-def make_windows(
-    ds,
-    target_start,
-    target_end,
-):
-
-    times = ds["time"].values
-
-    x_list = []
-    y_list = []
-    mask_list = []
-    target_times = []
-
-    for target_idx in range(
-        SEQUENCE_LENGTH - 1,
-        len(times),
+    def __init__(
+        self,
+        nc_path: Optional[Path] = None,
+        split: str = "train",
+        val_ratio: float = 0.2,
     ):
+        super().__init__()
+        self.nc_path = nc_path or SIH_FINAL_TRAINING_NC
+        if not self.nc_path.exists():
+            raise FileNotFoundError(f"SIH Training Dataset not found at: {self.nc_path}")
 
-        target_time = int(times[target_idx])
+        self.split = split
+        self.preprocessor = OceanPreprocessor()
+        self._h5 = None  # Lazy opened per-worker for multi-process safety
 
-        # Only keep targets belonging to this split
-        if not (
-            target_start
-            <= target_time
-            <= target_end
-        ):
-            continue
+        # Read time dimension to determine indices
+        with h5py.File(self.nc_path, "r") as f:
+            total_times = len(f["time"])
+            sst_sample = f["sst"][0]
+            self.ocean_mask = (np.isfinite(sst_sample) & (sst_sample > 0.0)).astype(bool)
 
-        start_idx = (
-            target_idx
-            - SEQUENCE_LENGTH
-            + 1
-        )
+        # 2022-2023: train (730 days), 2024: val/test (366 days)
+        if split == "train":
+            self.indices = list(range(0, 730))
+        elif split == "val":
+            self.indices = list(range(730, 912))   # 2024-01-01 to 2024-06-30
+        elif split == "test":
+            self.indices = list(range(912, total_times)) # 2024-07-01 to 2024-12-31
+        else:
+            self.indices = list(range(0, total_times))
 
-        # ---------------------------------------------
-        # Input sequence
-        # ---------------------------------------------
+    def _ensure_open(self):
+        if self._h5 is None:
+            self._h5 = h5py.File(self.nc_path, "r")
 
-        window = ds[
-            INPUT_VARIABLES
-        ].isel(
-            time=slice(
-                start_idx,
-                target_idx + 1,
-            )
-        )
+    def __len__(self) -> int:
+        return len(self.indices)
 
-        # Original:
-        # channels, time, lat, lon
-        x = window.to_array().values
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        self._ensure_open()
+        t_idx = self.indices[idx]
 
-        # Desired:
-        # time, lat, lon, channels
-        x = np.transpose(
-            x,
-            (1, 2, 3, 0),
-        ).astype("float32")
+        # Read 7 surface channels
+        raw_surface = {
+            "sst":            self._h5["sst"][t_idx].astype(np.float32),
+            "sss":            self._h5["sss"][t_idx].astype(np.float32),
+            "ssh":            self._h5["ssh"][t_idx].astype(np.float32),
+            "u":              self._h5["u"][t_idx].astype(np.float32),
+            "v":              self._h5["v"][t_idx].astype(np.float32),
+            "eastward_wind":  self._h5["eastward_wind"][t_idx].astype(np.float32),
+            "northward_wind": self._h5["northward_wind"][t_idx].astype(np.float32),
+        }
 
-        # Neural networks cannot consume NaNs.
-        # In normalized space zero corresponds
-        # approximately to the training mean.
-        x = np.nan_to_num(
-            x,
-            nan=0.0,
-            posinf=0.0,
-            neginf=0.0,
-        )
+        # Wind seasonal fallback if NaN
+        if np.all(np.isnan(raw_surface["eastward_wind"])):
+            raw_surface["eastward_wind"] = np.where(self.ocean_mask, 3.05, 0.0).astype(np.float32)
+            raw_surface["northward_wind"] = np.where(self.ocean_mask, -1.12, 0.0).astype(np.float32)
 
-        # ---------------------------------------------
-        # Target
-        # ---------------------------------------------
+        # Target 3D temperature (15, 101, 241)
+        raw_thetao = self._h5["thetao"][t_idx].astype(np.float32)
 
-        y_raw = ds[
-            TARGET_VARIABLE
-        ].isel(
-            time=target_idx
-        ).values.astype("float32")
+        # Normalize inputs (7, 101, 241) and targets (15, 101, 241)
+        norm_inputs = self.preprocessor.normalize_surface_tensor(raw_surface, nan_fill=0.0)
+        norm_target = self.preprocessor.normalize_target_tensor(raw_thetao, nan_fill=0.0)
 
-        # 1 = valid target ocean pixel
-        # 0 = invalid / land / missing
-        target_mask = np.isfinite(
-            y_raw
-        ).astype("float32")
+        x_tensor = torch.from_numpy(norm_inputs).float()
+        y_tensor = torch.from_numpy(norm_target).float()
+        mask_tensor = torch.from_numpy(self.ocean_mask).bool()
 
-        # Placeholder zero where target is invalid.
-        # Masked loss will ignore these pixels.
-        y = np.nan_to_num(
-            y_raw,
-            nan=0.0,
-            posinf=0.0,
-            neginf=0.0,
-        )
+        return x_tensor, y_tensor, mask_tensor
 
-        x_list.append(x)
-        y_list.append(y)
-        mask_list.append(target_mask)
-        target_times.append(target_time)
-
-    X = np.stack(
-        x_list
-    ).astype("float32")
-
-    y = np.stack(
-        y_list
-    ).astype("float32")
-
-    masks = np.stack(
-        mask_list
-    ).astype("float32")
-
-    target_times = np.asarray(
-        target_times
-    )
-
-    return (
-        X,
-        y,
-        masks,
-        target_times,
-    )
+    def close(self):
+        if self._h5 is not None:
+            try:
+                self._h5.close()
+            except Exception:
+                pass
+            self._h5 = None
 
 
-def print_split(
-    name,
-    X,
-    y,
-    masks,
-    times,
-):
+def create_dataloaders(
+    batch_size: int = 4,
+    nc_path: Optional[Path] = None,
+    num_workers: int = 0,
+) -> Tuple[DataLoader, DataLoader, DataLoader]:
+    """Factory creating train, val, and test DataLoaders."""
+    train_ds = SIHOceanDataset(nc_path=nc_path, split="train")
+    val_ds   = SIHOceanDataset(nc_path=nc_path, split="val")
+    test_ds  = SIHOceanDataset(nc_path=nc_path, split="test")
 
-    print(f"\n{name}:")
-    print("X     :", X.shape)
-    print("y     :", y.shape)
-    print("mask  :", masks.shape)
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True,  num_workers=num_workers)
+    val_loader   = DataLoader(val_ds,   batch_size=batch_size, shuffle=False, num_workers=num_workers)
+    test_loader  = DataLoader(test_ds,  batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
-    print(
-        "time  :",
-        times[0],
-        "→",
-        times[-1],
-    )
-
-    print(
-        "X NaNs:",
-        int(np.isnan(X).sum()),
-    )
-
-    print(
-        "y NaNs:",
-        int(np.isnan(y).sum()),
-    )
-
-    print(
-        "Valid target pixels:",
-        int(masks.sum()),
-    )
-
-    print(
-        "Mask coverage:",
-        round(
-            float(masks.mean()) * 100,
-            2,
-        ),
-        "%",
-    )
-
-
-def main():
-
-    ds = load_dataset()
-
-    print("\nBuilding TRAIN split...")
-
-    (
-        X_train,
-        y_train,
-        mask_train,
-        time_train,
-    ) = make_windows(
-        ds,
-        199201,
-        201512,
-    )
-
-    print("\nBuilding VALIDATION split...")
-
-    (
-        X_val,
-        y_val,
-        mask_val,
-        time_val,
-    ) = make_windows(
-        ds,
-        201601,
-        201812,
-    )
-
-    print("\nBuilding TEST split...")
-
-    (
-        X_test,
-        y_test,
-        mask_test,
-        time_test,
-    ) = make_windows(
-        ds,
-        201901,
-        202112,
-    )
-
-    print("\n" + "=" * 70)
-    print("FINAL MODEL-READY SHAPES")
-    print("=" * 70)
-
-    print_split(
-        "TRAIN",
-        X_train,
-        y_train,
-        mask_train,
-        time_train,
-    )
-
-    print_split(
-        "VALIDATION",
-        X_val,
-        y_val,
-        mask_val,
-        time_val,
-    )
-
-    print_split(
-        "TEST",
-        X_test,
-        y_test,
-        mask_test,
-        time_test,
-    )
-
-    ds.close()
-
-    print("\n" + "=" * 70)
-    print("Dataset preparation successful.")
-    print("=" * 70)
-
-
-if __name__ == "__main__":
-    main()
+    return train_loader, val_loader, test_loader
