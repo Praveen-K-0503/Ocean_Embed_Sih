@@ -72,332 +72,128 @@
         </div>
       </header>
 
-      <!-- PAGE 0: Modern Market-Deployed Home Page -->
+      <!-- PAGE 0: Modern Market-Deployed Home Page with Video Background -->
       <div id="home-page" class="page-view active">
-        <div class="home-container">
-          
-          <!-- Hero Section -->
-          <section class="home-hero">
-            <div class="home-badge-wrapper">
-              <span class="home-badge"><i class="fa-solid fa-award"></i> Smart India Hackathon 2026 · INCOIS / Ministry of Earth Sciences (Problem #26066)</span>
-              <span class="home-badge-pill"><i class="fa-solid fa-satellite"></i> 7-Channel Satellite Ingestion</span>
+        <!-- Dynamic Cinematic Video Background -->
+        <div class="home-video-container">
+          <video class="home-bg-video" autoplay loop muted playsinline preload="auto">
+            <source src="/video/244754.mp4" type="video/mp4">
+          </video>
+          <div class="home-video-overlay"></div>
+        </div>
+
+        <div class="home-content-wrapper">
+          <!-- Hero Section: Essentials Only -->
+          <section class="home-hero-compact">
+            <div class="home-hero-badge">
+              <span class="pulse-dot"></span>
+              <span>MoES &amp; INCOIS · SIH 2026 Problem #26066</span>
             </div>
 
-            <h1 class="home-hero-title">
-              Deep 3D Subsurface Ocean Intelligence from Surface Satellite Observations
+            <h1 class="home-hero-headline">
+              Deep 3D Subsurface Ocean Intelligence
             </h1>
-            
-            <p class="home-hero-desc">
-              Operational deep learning framework reconstructing the 0–1000m vertical thermal field, thermocline dynamics, and tropical cyclone heat potential across the North Indian Ocean at 0.25° daily spatial-temporal resolution.
+
+            <p class="home-hero-motive">
+              Transforming surface satellite observations into high-resolution 3D subsurface thermal fields (0–1000m) across the North Indian Ocean using physics-guided deep learning.
             </p>
 
-            <div class="home-cta-row">
-              <button class="btn-home-primary" onclick="showPage('studio-3d-page')">
+            <!-- Key Metric Chips (Clean, Glassmorphic) -->
+            <div class="home-metrics-pills">
+              <div class="metric-pill">
+                <i class="fa-solid fa-table-cells"></i>
+                <div class="pill-info">
+                  <strong>0.25° × 0.25°</strong>
+                  <span>Spatial Grid</span>
+                </div>
+              </div>
+              <div class="metric-pill">
+                <i class="fa-solid fa-arrows-up-down"></i>
+                <div class="pill-info">
+                  <strong>0 – 1000 m</strong>
+                  <span>15 Depth Levels</span>
+                </div>
+              </div>
+              <div class="metric-pill highlight">
+                <i class="fa-solid fa-bullseye"></i>
+                <div class="pill-info">
+                  <strong>0.797 °C RMSE</strong>
+                  <span>ARGO Float Skill</span>
+                </div>
+              </div>
+              <div class="metric-pill">
+                <i class="fa-solid fa-bolt"></i>
+                <div class="pill-info">
+                  <strong>&lt; 10 ms</strong>
+                  <span>Real-Time Inference</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Prominent Action Buttons -->
+            <div class="home-hero-actions">
+              <button class="btn-hero-glow" onclick="showPage('studio-3d-page')">
                 <i class="fa-solid fa-cube"></i> Launch 3D Volumetric Studio
               </button>
-              <button class="btn-home-secondary" onclick="showPage('dashboard-page')">
+              <button class="btn-hero-glass" onclick="showPage('dashboard-page')">
                 <i class="fa-solid fa-gauge-high"></i> Open Reconstruction Dashboard
               </button>
-              <button class="btn-home-outline" onclick="showPage('gnn-page')">
+              <button class="btn-hero-outline" onclick="showPage('gnn-page')">
                 <i class="fa-solid fa-diagram-project"></i> OceanGNN Hydrodynamic Graph
               </button>
             </div>
           </section>
 
-          <!-- Essential Basin Telemetry & Operational Specs -->
-          <section class="home-section">
-            <div class="section-title-row">
-              <div class="str-left">
-                <span class="str-tag">System Parameters</span>
-                <h2>Operational Domain & Essential Metrics</h2>
-              </div>
-              <div class="str-right">
-                <span class="pulse-indicator"></span> Real-Time AI Inference Active
-              </div>
-            </div>
-
-            <div class="home-kpi-grid">
-              <div class="home-kpi-card">
-                <div class="hk-icon"><i class="fa-solid fa-table-cells"></i></div>
-                <div class="hk-content">
-                  <span class="hk-label">Spatial Resolution</span>
-                  <strong class="hk-val">0.25° × 0.25°</strong>
-                  <span class="hk-sub">101 Lat × 241 Lon (~25 km Grid)</span>
+          <!-- 4 Concise Capability Cards (Essential Navigation, No Verbose Paragraphs) -->
+          <section class="home-caps-section">
+            <div class="home-caps-grid">
+              <div class="cap-card" onclick="showPage('studio-3d-page')">
+                <div class="cap-icon-box"><i class="fa-solid fa-cube"></i></div>
+                <div class="cap-body">
+                  <h3>3D Volumetric Studio</h3>
+                  <p>Interactive 3D ocean cube with orthocut curtains and seafloor bathymetry.</p>
                 </div>
+                <span class="cap-arrow"><i class="fa-solid fa-arrow-right"></i></span>
               </div>
 
-              <div class="home-kpi-card">
-                <div class="hk-icon"><i class="fa-solid fa-map-location-dot"></i></div>
-                <div class="hk-content">
-                  <span class="hk-label">Geographic Domain</span>
-                  <strong class="hk-val">5°N–30°N, 45°E–105°E</strong>
-                  <span class="hk-sub">Arabian Sea, Bay of Bengal, Equatorial NIO</span>
+              <div class="cap-card" onclick="showPage('dashboard-page')">
+                <div class="cap-icon-box"><i class="fa-solid fa-chart-line"></i></div>
+                <div class="cap-body">
+                  <h3>Pointwise Reconstruction</h3>
+                  <p>15-depth vertical thermal profiles with uncertainty bounds and SVP acoustics.</p>
                 </div>
+                <span class="cap-arrow"><i class="fa-solid fa-arrow-right"></i></span>
               </div>
 
-              <div class="home-kpi-card">
-                <div class="hk-icon"><i class="fa-solid fa-arrows-up-down"></i></div>
-                <div class="hk-content">
-                  <span class="hk-label">Vertical Standard Depths</span>
-                  <strong class="hk-val">15 Standard Levels</strong>
-                  <span class="hk-sub">0m to 1000m (Epipelagic to Mesopelagic)</span>
+              <div class="cap-card" onclick="showPage('gnn-page')">
+                <div class="cap-icon-box"><i class="fa-solid fa-diagram-project"></i></div>
+                <div class="cap-body">
+                  <h3>OceanGNN Topology</h3>
+                  <p>Spatial-temporal graph attention network with current advection messaging.</p>
                 </div>
+                <span class="cap-arrow"><i class="fa-solid fa-arrow-right"></i></span>
               </div>
 
-              <div class="home-kpi-card">
-                <div class="hk-icon"><i class="fa-solid fa-calendar-check"></i></div>
-                <div class="hk-content">
-                  <span class="hk-label">Reanalysis Coverage</span>
-                  <strong class="hk-val">1,096 Daily Timesteps</strong>
-                  <span class="hk-sub">Continuous 2022–2024 Daily Satellite Ingestion</span>
+              <div class="cap-card" onclick="showPage('dashboard-page'); switchTab('validation-tab')">
+                <div class="cap-icon-box"><i class="fa-solid fa-anchor"></i></div>
+                <div class="cap-body">
+                  <h3>INCOIS ARGO Validation</h3>
+                  <p>Ground-truth depth-wise benchmark scoring across 6 active buoy stations.</p>
                 </div>
-              </div>
-
-              <div class="home-kpi-card highlight">
-                <div class="hk-icon"><i class="fa-solid fa-bullseye"></i></div>
-                <div class="hk-content">
-                  <span class="hk-label">Validation Accuracy</span>
-                  <strong class="hk-val">0.797 °C RMSE</strong>
-                  <span class="hk-sub">r = 0.894 vs Official INCOIS ARGO Floats</span>
-                </div>
-              </div>
-
-              <div class="home-kpi-card">
-                <div class="hk-icon"><i class="fa-solid fa-bolt"></i></div>
-                <div class="hk-content">
-                  <span class="hk-label">Inference Latency</span>
-                  <strong class="hk-val">~6.5 ms / Profile</strong>
-                  <span class="hk-sub">FastAPI + PyTorch GPU/CPU Optimization</span>
-                </div>
+                <span class="cap-arrow"><i class="fa-solid fa-arrow-right"></i></span>
               </div>
             </div>
           </section>
 
-          <!-- Core Capability Modules -->
-          <section class="home-section">
-            <div class="section-title-row">
-              <div class="str-left">
-                <span class="str-tag">Platform Workspaces</span>
-                <h2>Specialized Ocean Intelligence Modules</h2>
-              </div>
-              <p class="str-desc">Deploying multi-architecture deep learning for subsurface reconstruction, acoustic tracking, and hazard forecasting.</p>
+          <!-- Minimalist Clean Footer -->
+          <footer class="home-footer-minimal">
+            <div class="hfm-brand">
+              <strong>Ocean<span>Embed</span></strong> · Ministry of Earth Sciences &amp; INCOIS (SIH 2026)
             </div>
-
-            <div class="home-features-grid">
-              
-              <!-- Module 1 -->
-              <div class="home-feature-card">
-                <div class="hfc-header">
-                  <div class="hfc-icon-wrap"><i class="fa-solid fa-chart-line"></i></div>
-                  <span class="hfc-badge">Operational</span>
-                </div>
-                <h3>Pointwise & Vertical Profile Reconstructions</h3>
-                <p>Reconstruct continuous 15-depth vertical temperature profiles at any coordinate with ±1σ Bayesian uncertainty bounds, thermocline (D20) calculation, and Mackenzie sound velocity profiling (SVP) for underwater sonar tracking.</p>
-                <div class="hfc-meta">
-                  <span><i class="fa-solid fa-check"></i> 15 Depths (0–1000m)</span>
-                  <span><i class="fa-solid fa-check"></i> Sonar Acoustic Shadow</span>
-                </div>
-                <button class="btn-hfc-action" onclick="showPage('dashboard-page')">
-                  Open Reconstruction Dashboard <i class="fa-solid fa-arrow-right"></i>
-                </button>
-              </div>
-
-              <!-- Module 2 -->
-              <div class="home-feature-card">
-                <div class="hfc-header">
-                  <div class="hfc-icon-wrap"><i class="fa-solid fa-cube"></i></div>
-                  <span class="hfc-badge">Interactive 3D</span>
-                </div>
-                <h3>3D Volumetric Thermal Reconstruction Studio</h3>
-                <p>Isometric 3D oceanic block fully enclosed with high-definition satellite terrain, four continuous boundary thermal curtains (South 5°N, North 30°N, West 45°E, East 105°E), 1000m seafloor base, and 8-point compass rotation.</p>
-                <div class="hfc-meta">
-                  <span><i class="fa-solid fa-check"></i> Enclosed 3D Volume</span>
-                  <span><i class="fa-solid fa-check"></i> Orthocut Curtains</span>
-                </div>
-                <button class="btn-hfc-action" onclick="showPage('studio-3d-page')">
-                  Enter 3D Studio <i class="fa-solid fa-arrow-right"></i>
-                </button>
-              </div>
-
-              <!-- Module 3 -->
-              <div class="home-feature-card">
-                <div class="hfc-header">
-                  <div class="hfc-icon-wrap"><i class="fa-solid fa-diagram-project"></i></div>
-                  <span class="hfc-badge">New Architecture</span>
-                </div>
-                <h3>OceanGNN Hydrodynamic Graph Network</h3>
-                <p>Spatial-temporal graph attention network connecting 12 in-situ observation nodes across the Arabian Sea, Bay of Bengal, and Equatorial Indian Ocean with directional current advection alignment and 5-model benchmark.</p>
-                <div class="hfc-meta">
-                  <span><i class="fa-solid fa-check"></i> Advection Message Passing</span>
-                  <span><i class="fa-solid fa-check"></i> 5-Architecture Benchmark</span>
-                </div>
-                <button class="btn-hfc-action" onclick="showPage('gnn-page')">
-                  Inspect GNN Topology <i class="fa-solid fa-arrow-right"></i>
-                </button>
-              </div>
-
-              <!-- Module 4 -->
-              <div class="home-feature-card">
-                <div class="hfc-header">
-                  <div class="hfc-icon-wrap"><i class="fa-solid fa-anchor"></i></div>
-                  <span class="hfc-badge">INCOIS Ground Truth</span>
-                </div>
-                <h3>Official INCOIS ARGO Float Validation</h3>
-                <p>Ground-truth benchmarking against 6 active INCOIS ARGO float stations. Computes depth-wise RMSE, Mean Absolute Error (MAE), bias, and Pearson correlation coefficients across the 15 standard oceanographic depths.</p>
-                <div class="hfc-meta">
-                  <span><i class="fa-solid fa-check"></i> 6 In-Situ Stations</span>
-                  <span><i class="fa-solid fa-check"></i> Depth-Wise Skill Scoring</span>
-                </div>
-                <button class="btn-hfc-action" onclick="showPage('dashboard-page'); switchTab('validation-tab')">
-                  View ARGO Validation <i class="fa-solid fa-arrow-right"></i>
-                </button>
-              </div>
-
-              <!-- Module 5 -->
-              <div class="home-feature-card">
-                <div class="hfc-header">
-                  <div class="hfc-icon-wrap"><i class="fa-solid fa-cloud-sun-rain"></i></div>
-                  <span class="hfc-badge">Climate Impact</span>
-                </div>
-                <h3>Agro-Climate & Monsoon Teleconnection</h3>
-                <p>Synthesizes North Indian Ocean thermal energy anomalies with Indian monsoon onset shifts, coastal NDVI vegetation vigor, rainfall deviations, and regional crop yield forecasts for 6 coastal agricultural zones.</p>
-                <div class="hfc-meta">
-                  <span><i class="fa-solid fa-check"></i> Monsoon Shift Tracking</span>
-                  <span><i class="fa-solid fa-check"></i> 6 Coastal Agro Zones</span>
-                </div>
-                <button class="btn-hfc-action" onclick="showPage('dashboard-page'); switchTab('agro-tab')">
-                  Explore Agro Analytics <i class="fa-solid fa-arrow-right"></i>
-                </button>
-              </div>
-
-              <!-- Module 6 -->
-              <div class="home-feature-card">
-                <div class="hfc-header">
-                  <div class="hfc-icon-wrap"><i class="fa-solid fa-shield-virus"></i></div>
-                  <span class="hfc-badge">Marine Safety</span>
-                </div>
-                <h3>Marine Heatwave & Tropical Cyclone Potential</h3>
-                <p>Real-time computation of Tropical Cyclone Heat Potential (TCHP) using integrated thermal energy above 26°C and Mixed Layer Depth (MLD) for early advisory and cyclone intensification risk monitoring.</p>
-                <div class="hfc-meta">
-                  <span><i class="fa-solid fa-check"></i> TCHP Energy Integration</span>
-                  <span><i class="fa-solid fa-check"></i> Mixed Layer Tracking</span>
-                </div>
-                <button class="btn-hfc-action" onclick="showPage('dashboard-page')">
-                  Inspect Marine Diagnostics <i class="fa-solid fa-arrow-right"></i>
-                </button>
-              </div>
-
-            </div>
-          </section>
-
-          <!-- Technical Pipeline Architecture Section -->
-          <section class="home-section">
-            <div class="section-title-row">
-              <div class="str-left">
-                <span class="str-tag">Deep Learning Blueprint</span>
-                <h2>Multi-Satellite Ingestion & 3D Reconstruction Pipeline</h2>
-              </div>
-              <p class="str-desc">End-to-end dataflow from Copernicus / NASA / JAXA satellite observations to 3D vertical ocean physics.</p>
-            </div>
-
-            <div class="home-pipeline-box">
-              <div class="pipeline-grid">
-                
-                <div class="pipeline-step">
-                  <div class="ps-header">
-                    <span class="ps-num">01</span>
-                    <span class="ps-icon"><i class="fa-solid fa-satellite"></i></span>
-                  </div>
-                  <h4>7 Surface Channels</h4>
-                  <ul class="ps-list">
-                    <li><strong>SST:</strong> UKMO OSTIA High-Res (0.05°)</li>
-                    <li><strong>SSS:</strong> SMAP / SMOS Microwave</li>
-                    <li><strong>SSH/SLA:</strong> DUACS Multi-Altimeter</li>
-                    <li><strong>Currents (U, V):</strong> OSCAR Geostrophic</li>
-                    <li><strong>Winds (U, V):</strong> CCMP / ASCAT Scatterometer</li>
-                  </ul>
-                </div>
-
-                <div class="pipeline-arrow"><i class="fa-solid fa-chevron-right"></i></div>
-
-                <div class="pipeline-step">
-                  <div class="ps-header">
-                    <span class="ps-num">02</span>
-                    <span class="ps-icon"><i class="fa-solid fa-dna"></i></span>
-                  </div>
-                  <h4>Pre-processing & Normalization</h4>
-                  <ul class="ps-list">
-                    <li>Channel-wise (μ, σ) Z-Score scaling</li>
-                    <li>North Indian Ocean land-sea masking</li>
-                    <li>0.25° Cartesian grid interpolation</li>
-                    <li>Monsoon climatological fallback</li>
-                  </ul>
-                </div>
-
-                <div class="pipeline-arrow"><i class="fa-solid fa-chevron-right"></i></div>
-
-                <div class="pipeline-step">
-                  <div class="ps-header">
-                    <span class="ps-num">03</span>
-                    <span class="ps-icon"><i class="fa-solid fa-microchip"></i></span>
-                  </div>
-                  <h4>Deep Representation Learning</h4>
-                  <ul class="ps-list">
-                    <li><strong>OceanEmbedNet:</strong> 64-D Latent Space</li>
-                    <li><strong>DualViTUNet:</strong> Dual Spatial-Depth ViT</li>
-                    <li><strong>OceanGNN:</strong> Advection Graph Attention</li>
-                    <li><strong>OceanUNet:</strong> 2D Residual CNN</li>
-                    <li><strong>ConvLSTM:</strong> Spatio-Temporal Memory</li>
-                  </ul>
-                </div>
-
-                <div class="pipeline-arrow"><i class="fa-solid fa-chevron-right"></i></div>
-
-                <div class="pipeline-step highlight">
-                  <div class="ps-header">
-                    <span class="ps-num">04</span>
-                    <span class="ps-icon"><i class="fa-solid fa-water"></i></span>
-                  </div>
-                  <h4>3D Subsurface Output</h4>
-                  <ul class="ps-list">
-                    <li>15 standard depth temperatures (0–1000m)</li>
-                    <li>Thermocline depth (D20 isotherm)</li>
-                    <li>Tropical Cyclone Heat Potential (TCHP)</li>
-                    <li>Sound Velocity Profiles (Mackenzie SVP)</li>
-                  </ul>
-                </div>
-
-              </div>
-            </div>
-          </section>
-
-          <!-- Professional Footer -->
-          <footer class="home-footer">
-            <div class="hf-content">
-              <div class="hf-left">
-                <div class="hf-brand">Ocean<span>Embed</span></div>
-                <p>Operational Satellite Embedding Framework for Subsurface Ocean Reconstruction.</p>
-                <span class="hf-sub">Ministry of Earth Sciences (MoES) & INCOIS · Smart India Hackathon 2026</span>
-              </div>
-              <div class="hf-right">
-                <div class="hf-links">
-                  <button class="btn-link" onclick="showPage('home-page')">Home</button>
-                  <button class="btn-link" onclick="showPage('dashboard-page')">Dashboard</button>
-                  <button class="btn-link" onclick="showPage('studio-3d-page')">3D Studio</button>
-                  <button class="btn-link" onclick="showPage('gnn-page')">OceanGNN</button>
-                </div>
-                <div class="hf-citations">
-                  <span>Reanalysis: Copernicus GLORYS12V1 (doi: 10.48670/moi-00021)</span>
-                  <span>In-Situ: INCOIS ARGO Float Network</span>
-                </div>
-              </div>
-            </div>
-            <div class="hf-bottom">
-              <span>&copy; 2026 OceanEmbed Platform · Operational AI for Deep Subsurface Oceanography</span>
-              <span class="hf-status"><span class="pulse-dot"></span> 13/13 Endpoints Active · Latency &lt;10ms</span>
+            <div class="hfm-status">
+              <span class="pulse-dot"></span> 0.25° Basin Reanalysis Coverage Active (5°N–30°N, 45°E–105°E)
             </div>
           </footer>
-
         </div>
       </div>
 
