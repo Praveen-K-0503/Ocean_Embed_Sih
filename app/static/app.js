@@ -240,11 +240,7 @@ function showPage(pageId) {
     if (dashDate && gnnDate && (!gnnDate.value || gnnDate.value !== dashDate)) {
       gnnDate.value = dashDate;
     }
-    initGnnMap();
     fetchGnnData();
-    setTimeout(() => {
-      if (gnnLeafletMap) gnnLeafletMap.invalidateSize();
-    }, 120);
   }
 }
 
@@ -1405,557 +1401,6 @@ function toggleSolidVolume() {
   renderStudio3D();
 }
 
-/* ============================================================
-   Universal 3D Studio & Fallback Engine (Zero WebGL Failures)
-   ============================================================ */
-function checkWebGLAvailable() {
-  try {
-    const canvas = document.createElement("canvas");
-    const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
-    return !!(gl && (gl instanceof WebGLRenderingContext || typeof gl.getParameter === "function"));
-  } catch (e) {
-    return false;
-  }
-}
-
-function updateStudioEngineBadge(engineName) {
-  const badge = document.getElementById("studio-engine-badge");
-  const text = document.getElementById("studio-engine-text");
-  if (!badge || !text) return;
-
-  if (engineName === "isometric") {
-    text.innerHTML = '<i class="fa-solid fa-cube"></i> Universal Isometric 3D Engine (Software Accelerated)';
-    const dot = badge.querySelector(".seb-dot");
-    if (dot) { dot.style.background = "#38bdf8"; dot.style.boxShadow = "0 0 8px #38bdf8"; }
-  } else if (engineName === "curtains") {
-    text.innerHTML = '<i class="fa-solid fa-layer-group"></i> Multi-Curtain 2D Depth Explorer';
-    const dot = badge.querySelector(".seb-dot");
-    if (dot) { dot.style.background = "#34d399"; dot.style.boxShadow = "0 0 8px #34d399"; }
-  } else {
-    text.innerHTML = '<i class="fa-solid fa-bolt"></i> WebGL Hardware 3D Accelerated';
-    const dot = badge.querySelector(".seb-dot");
-    if (dot) { dot.style.background = "#22c55e"; dot.style.boxShadow = "0 0 8px #22c55e"; }
-  }
-}
-
-let isoYaw = 0.62;
-let isoPitch = 0.52;
-let isoZoom = 1.0;
-let isIsoDragging = false;
-let isoLastMouseX = 0;
-let isoLastMouseY = 0;
-let isoCanvasInitialized = false;
-let lastStudioVolumeData = null;
-
-function renderUniversalIsometric3D(data) {
-  lastStudioVolumeData = data;
-  updateStudioEngineBadge("isometric");
-
-  const pContainer = document.getElementById("plotly-3d-studio-container");
-  const isoCanvas = document.getElementById("studio-isometric-canvas");
-  const curContainer = document.getElementById("studio-curtains-container");
-
-  if (pContainer) pContainer.style.display = "none";
-  if (curContainer) curContainer.style.display = "none";
-  if (isoCanvas) isoCanvas.style.display = "block";
-
-  drawIsometricFrame();
-
-  if (!isoCanvasInitialized && isoCanvas) {
-    isoCanvas.addEventListener("mousedown", (e) => {
-      isIsoDragging = true;
-      isoLastMouseX = e.clientX;
-      isoLastMouseY = e.clientY;
-      isoCanvas.style.cursor = "grabbing";
-    });
-
-    window.addEventListener("mousemove", (e) => {
-      if (!isIsoDragging) return;
-      const dx = e.clientX - isoLastMouseX;
-      const dy = e.clientY - isoLastMouseY;
-      isoLastMouseX = e.clientX;
-      isoLastMouseY = e.clientY;
-
-      isoYaw += dx * 0.008;
-      isoPitch = Math.max(0.15, Math.min(1.35, isoPitch - dy * 0.008));
-      drawIsometricFrame();
-
-      const angleDeg = (isoYaw * 180 / Math.PI) % 360;
-      const needle = document.getElementById("compass-needle");
-      if (needle) needle.style.transform = `rotate(${angleDeg}deg)`;
-    });
-
-    window.addEventListener("mouseup", () => {
-      isIsoDragging = false;
-      if (isoCanvas) isoCanvas.style.cursor = "grab";
-    });
-
-    isoCanvas.addEventListener("wheel", (e) => {
-      e.preventDefault();
-      const delta = e.deltaY < 0 ? 0.08 : -0.08;
-      isoZoom = Math.max(0.7, Math.min(2.0, isoZoom + delta));
-      drawIsometricFrame();
-    }, { passive: false });
-
-    window.addEventListener("resize", () => {
-      if (document.getElementById("studio-page") && !document.getElementById("studio-page").classList.contains("hidden")) {
-        drawIsometricFrame();
-      }
-    });
-
-    isoCanvasInitialized = true;
-  }
-}
-
-function drawIsometricFrame() {
-  const canvas = document.getElementById("studio-isometric-canvas");
-  if (!canvas || !lastStudioVolumeData) return;
-
-  const wrap = document.getElementById("studio-canvas-wrapper");
-  canvas.width = wrap?.clientWidth || 900;
-  canvas.height = wrap?.clientHeight || 600;
-
-  const ctx = canvas.getContext("2d");
-  const W = canvas.width;
-  const H = canvas.height;
-  const cx = W * 0.52;
-  const cy = H * 0.46;
-  const scale = Math.min(W, H) * 0.44 * isoZoom;
-
-  ctx.clearRect(0, 0, W, H);
-
-  // Deep oceanic canvas background
-  const bgGrad = ctx.createLinearGradient(0, 0, W, H);
-  bgGrad.addColorStop(0, "#050c1c");
-  bgGrad.addColorStop(1, "#030712");
-  ctx.fillStyle = bgGrad;
-  ctx.fillRect(0, 0, W, H);
-
-  const data = lastStudioVolumeData;
-  const depths = data.depths || [0, 5, 10, 20, 30, 50, 75, 100, 125, 150, 200, 300, 500, 700, 1000];
-
-  function getThermalColor(t) {
-    if (t === null || t === undefined || isNaN(t)) return "rgb(2, 62, 138)";
-    const norm = Math.max(0, Math.min(1, (t - 0.0) / 30.0));
-    let r, g, b;
-    if (norm < 0.2) {
-      const s = norm / 0.2;
-      r = Math.round(3 + s * (2 - 3));
-      g = Math.round(4 + s * (62 - 4));
-      b = Math.round(94 + s * (138 - 94));
-    } else if (norm < 0.4) {
-      const s = (norm - 0.2) / 0.2;
-      r = Math.round(2 + s * (0 - 2));
-      g = Math.round(62 + s * (150 - 62));
-      b = Math.round(138 + s * (199 - 138));
-    } else if (norm < 0.6) {
-      const s = (norm - 0.4) / 0.2;
-      r = Math.round(0 + s * (0 - 0));
-      g = Math.round(150 + s * (230 - 150));
-      b = Math.round(199 + s * (118 - 199));
-    } else if (norm < 0.75) {
-      const s = (norm - 0.6) / 0.15;
-      r = Math.round(0 + s * (255 - 0));
-      g = Math.round(230 + s * (209 - 230));
-      b = Math.round(118 + s * (102 - 118));
-    } else if (norm < 0.9) {
-      const s = (norm - 0.75) / 0.15;
-      r = Math.round(255 + s * (247 - 255));
-      g = Math.round(209 + s * (127 - 209));
-      b = Math.round(102 + s * (0 - 102));
-    } else {
-      const s = (norm - 0.9) / 0.1;
-      r = Math.round(247 + s * (214 - 247));
-      g = Math.round(127 + s * (40 - 127));
-      b = Math.round(0 + s * (40 - 0));
-    }
-    return `rgb(${r},${g},${b})`;
-  }
-
-  function project(lon, lat, depthM) {
-    const xNorm = (lon - 75.0) / 30.0;
-    const yNorm = (lat - 17.5) / 12.5;
-    const zNorm = -(Math.pow(depthM / 1000.0, 0.65)) * 0.9;
-
-    const rx = xNorm * Math.cos(isoYaw) - yNorm * Math.sin(isoYaw);
-    const ry = xNorm * Math.sin(isoYaw) + yNorm * Math.cos(isoYaw);
-    const rz = zNorm;
-
-    const scrX = rx;
-    const scrY = ry * Math.sin(isoPitch) - rz * Math.cos(isoPitch);
-
-    return {
-      x: cx + scrX * scale,
-      y: cy - scrY * scale
-    };
-  }
-
-  // 1. Seafloor Base Plate (1000m depth)
-  const b0 = project(45, 5, 1000);
-  const b1 = project(105, 5, 1000);
-  const b2 = project(105, 30, 1000);
-  const b3 = project(45, 30, 1000);
-
-  ctx.fillStyle = "#020a1c";
-  ctx.strokeStyle = "rgba(56, 189, 248, 0.2)";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(b0.x, b0.y);
-  ctx.lineTo(b1.x, b1.y);
-  ctx.lineTo(b2.x, b2.y);
-  ctx.lineTo(b3.x, b3.y);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-
-  // 2. Back North Wall & West Wall
-  const t0 = project(45, 5, 0);
-  const t1 = project(105, 5, 0);
-  const t2 = project(105, 30, 0);
-  const t3 = project(45, 30, 0);
-
-  ctx.fillStyle = "rgba(2, 20, 50, 0.6)";
-  ctx.beginPath();
-  ctx.moveTo(t3.x, t3.y);
-  ctx.lineTo(t2.x, t2.y);
-  ctx.lineTo(b2.x, b2.y);
-  ctx.lineTo(b3.x, b3.y);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.moveTo(t0.x, t0.y);
-  ctx.lineTo(t3.x, t3.y);
-  ctx.lineTo(b3.x, b3.y);
-  ctx.lineTo(b0.x, b0.y);
-  ctx.closePath();
-  ctx.fill();
-
-  // 3. Top Surface (Z = 0m)
-  const sstGrid = data.surface_sst || data.top_composite_surface;
-  const subLats = data.sub_lats || data.lats_sub || [];
-  const subLons = data.sub_lons || data.lons_sub || [];
-
-  if (sstGrid && subLats.length > 0 && subLons.length > 0) {
-    const latStep = Math.max(1, Math.floor(subLats.length / 24));
-    const lonStep = Math.max(1, Math.floor(subLons.length / 32));
-
-    for (let i = 0; i < subLats.length - latStep; i += latStep) {
-      for (let j = 0; j < subLons.length - lonStep; j += lonStep) {
-        const pA = project(subLons[j], subLats[i], 0);
-        const pB = project(subLons[j + lonStep], subLats[i], 0);
-        const pC = project(subLons[j + lonStep], subLats[i + latStep], 0);
-        const pD = project(subLons[j], subLats[i + latStep], 0);
-
-        const tempVal = sstGrid[i] ? sstGrid[i][j] : 28.0;
-        ctx.fillStyle = getThermalColor(tempVal);
-        ctx.beginPath();
-        ctx.moveTo(pA.x, pA.y);
-        ctx.lineTo(pB.x, pB.y);
-        ctx.lineTo(pC.x, pC.y);
-        ctx.lineTo(pD.x, pD.y);
-        ctx.closePath();
-        ctx.fill();
-      }
-    }
-  }
-
-  // 4. Vector Coastlines over Top Face
-  if (data.coastlines && data.coastlines.lats && data.coastlines.lats.length > 0) {
-    ctx.fillStyle = "#38bdf8";
-    const cLats = data.coastlines.lats;
-    const cLons = data.coastlines.lons;
-    for (let c = 0; c < cLats.length; c += 2) {
-      const pt = project(cLons[c], cLats[c], 0);
-      ctx.beginPath();
-      ctx.arc(pt.x, pt.y, 1.2, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-
-  // 5. In-Situ ARGO Floats
-  const argoFloats = [
-    { id: "ARGO #001", lat: 16.5, lon: 66.25 },
-    { id: "ARGO #002", lat: 14.5, lon: 63.50 },
-    { id: "ARGO #003", lat: 17.5, lon: 67.50 },
-    { id: "ARGO #004", lat: 14.25, lon: 92.75 },
-    { id: "ARGO #005", lat: 15.0, lon: 90.25 },
-    { id: "ARGO #006", lat: 12.25, lon: 90.50 }
-  ];
-  argoFloats.forEach(f => {
-    const pt = project(f.lon, f.lat, 0);
-    ctx.strokeStyle = "#38bdf8";
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.arc(pt.x, pt.y, 3.5, 0, Math.PI * 2);
-    ctx.stroke();
-
-    ctx.fillStyle = "#ffffff";
-    ctx.beginPath();
-    ctx.arc(pt.x, pt.y, 1.8, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = "#cbd5e1";
-    ctx.font = "9px 'Plus Jakarta Sans', sans-serif";
-    ctx.fillText(f.id, pt.x + 5, pt.y - 3);
-  });
-
-  // 6. Selected Probe Pin & Vertical Column
-  const probeLat = parseFloat(document.getElementById("studio-lat")?.value ?? "15.0");
-  const probeLon = parseFloat(document.getElementById("studio-lon")?.value ?? "65.0");
-  const pTop = project(probeLon, probeLat, 0);
-  const pBot = project(probeLon, probeLat, 1000);
-
-  ctx.strokeStyle = "#fbbf24";
-  ctx.lineWidth = 2.5;
-  ctx.setLineDash([4, 4]);
-  ctx.beginPath();
-  ctx.moveTo(pTop.x, pTop.y);
-  ctx.lineTo(pBot.x, pBot.y);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  ctx.fillStyle = "#f59e0b";
-  ctx.strokeStyle = "#ffffff";
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(pTop.x, pTop.y - 7);
-  ctx.lineTo(pTop.x + 6, pTop.y);
-  ctx.lineTo(pTop.x, pTop.y + 7);
-  ctx.lineTo(pTop.x - 6, pTop.y);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-
-  // 7. Front South Wall (5°N Curtain down to 1000m)
-  const southSlice = data.south_slice || data.lat_slice || [];
-  const lonsAll = data.lons_all || data.lons || [];
-
-  if (southSlice.length > 0 && lonsAll.length > 0) {
-    const colStep = Math.max(1, Math.floor(lonsAll.length / 48));
-    for (let k = 0; k < depths.length - 1; k++) {
-      const d1 = depths[k];
-      const d2 = depths[k + 1];
-      for (let j = 0; j < lonsAll.length - colStep; j += colStep) {
-        const p1 = project(lonsAll[j], 5.0, d1);
-        const p2 = project(lonsAll[j + colStep], 5.0, d1);
-        const p3 = project(lonsAll[j + colStep], 5.0, d2);
-        const p4 = project(lonsAll[j], 5.0, d2);
-
-        const tempVal = southSlice[k] ? southSlice[k][j] : 20.0;
-        ctx.fillStyle = getThermalColor(tempVal);
-        ctx.beginPath();
-        ctx.moveTo(p1.x, p1.y);
-        ctx.lineTo(p2.x, p2.y);
-        ctx.lineTo(p3.x, p3.y);
-        ctx.lineTo(p4.x, p4.y);
-        ctx.closePath();
-        ctx.fill();
-      }
-    }
-  }
-
-  // 8. Right East Wall (105°E Curtain down to 1000m)
-  const eastSlice = data.east_slice || data.lon_slice || [];
-  const latsAll = data.lats_all || data.lats || [];
-
-  if (eastSlice.length > 0 && latsAll.length > 0) {
-    const rowStep = Math.max(1, Math.floor(latsAll.length / 24));
-    for (let k = 0; k < depths.length - 1; k++) {
-      const d1 = depths[k];
-      const d2 = depths[k + 1];
-      for (let i = 0; i < latsAll.length - rowStep; i += rowStep) {
-        const p1 = project(105.0, latsAll[i], d1);
-        const p2 = project(105.0, latsAll[i + rowStep], d1);
-        const p3 = project(105.0, latsAll[i + rowStep], d2);
-        const p4 = project(105.0, latsAll[i], d2);
-
-        const tempVal = eastSlice[k] ? eastSlice[k][i] : 18.0;
-        ctx.fillStyle = getThermalColor(tempVal);
-        ctx.beginPath();
-        ctx.moveTo(p1.x, p1.y);
-        ctx.lineTo(p2.x, p2.y);
-        ctx.lineTo(p3.x, p3.y);
-        ctx.lineTo(p4.x, p4.y);
-        ctx.closePath();
-        ctx.fill();
-      }
-    }
-  }
-
-  // 9. D20 Thermocline overlay line on South Wall
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
-  ctx.lineWidth = 2.0;
-  ctx.setLineDash([5, 4]);
-  ctx.beginPath();
-  let firstD20 = true;
-  for (let j = 0; j < lonsAll.length; j += 6) {
-    let d20 = 110.0;
-    if (southSlice.length > 0) {
-      for (let k = 0; k < depths.length; k++) {
-        if (southSlice[k] && southSlice[k][j] <= 20.0) {
-          d20 = depths[k];
-          break;
-        }
-      }
-    }
-    const pt = project(lonsAll[j], 5.0, d20);
-    if (firstD20) { ctx.moveTo(pt.x, pt.y); firstD20 = false; }
-    else ctx.lineTo(pt.x, pt.y);
-  }
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  // 10. Outer Boundary Framing
-  ctx.strokeStyle = "rgba(56, 189, 248, 0.7)";
-  ctx.lineWidth = 1.5;
-
-  ctx.beginPath();
-  ctx.moveTo(t0.x, t0.y); ctx.lineTo(t1.x, t1.y); ctx.lineTo(t2.x, t2.y); ctx.lineTo(t3.x, t3.y); ctx.closePath();
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(t0.x, t0.y); ctx.lineTo(b0.x, b0.y);
-  ctx.moveTo(t1.x, t1.y); ctx.lineTo(b1.x, b1.y);
-  ctx.moveTo(t2.x, t2.y); ctx.lineTo(b2.x, b2.y);
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(b0.x, b0.y); ctx.lineTo(b1.x, b1.y); ctx.lineTo(b2.x, b2.y);
-  ctx.stroke();
-
-  // 11. Coordinate Axis & Depth Ticks
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 10px 'Plus Jakarta Sans', sans-serif";
-
-  [45, 60, 75, 90, 105].forEach(lon => {
-    const pt = project(lon, 5.0, 0);
-    ctx.fillText(`${lon}°E`, pt.x - 12, pt.y - 6);
-  });
-
-  [10, 15, 20, 25, 30].forEach(lat => {
-    const pt = project(105.0, lat, 0);
-    ctx.fillText(`${lat}°N`, pt.x + 6, pt.y - 2);
-  });
-
-  [0, 200, 500, 1000].forEach(d => {
-    const pt = project(45.0, 5.0, d);
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 10px 'JetBrains Mono', monospace";
-    ctx.fillText(`${d}m`, pt.x - 38, pt.y + 4);
-
-    ctx.strokeStyle = "rgba(56, 189, 248, 0.7)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(pt.x - 8, pt.y);
-    ctx.lineTo(pt.x, pt.y);
-    ctx.stroke();
-  });
-
-  // 12. Floating Horizontal Colorbar
-  const cbX = 35;
-  const cbY = H - 38;
-  const cbW = 200;
-  const cbH = 12;
-
-  const cbGrad = ctx.createLinearGradient(cbX, 0, cbX + cbW, 0);
-  cbGrad.addColorStop(0.00, "#03045e");
-  cbGrad.addColorStop(0.17, "#023e8a");
-  cbGrad.addColorStop(0.33, "#0077b6");
-  cbGrad.addColorStop(0.50, "#00b4d8");
-  cbGrad.addColorStop(0.67, "#ffd166");
-  cbGrad.addColorStop(0.83, "#f77f00");
-  cbGrad.addColorStop(1.00, "#d62828");
-
-  ctx.fillStyle = cbGrad;
-  ctx.fillRect(cbX, cbY, cbW, cbH);
-  ctx.strokeStyle = "rgba(56, 189, 248, 0.5)";
-  ctx.strokeRect(cbX, cbY, cbW, cbH);
-
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "9px 'Plus Jakarta Sans', sans-serif";
-  ctx.fillText("Temperature (°C)", cbX, cbY - 5);
-  ctx.fillText("0°C", cbX, cbY + cbH + 12);
-  ctx.fillText("15°C", cbX + cbW / 2 - 8, cbY + cbH + 12);
-  ctx.fillText("30°C", cbX + cbW - 16, cbY + cbH + 12);
-
-  // 13. Instruction badge
-  ctx.fillStyle = "rgba(148, 163, 184, 0.75)";
-  ctx.font = "10px 'Plus Jakarta Sans', sans-serif";
-  ctx.fillText("🖱️ Drag mouse to orbit 3D ocean block • Scroll to zoom • Click compass rose to re-orient", W - 430, H - 18);
-}
-
-function renderMultiCurtains2D(data) {
-  updateStudioEngineBadge("curtains");
-
-  const pContainer = document.getElementById("plotly-3d-studio-container");
-  const isoCanvas = document.getElementById("studio-isometric-canvas");
-  const curContainer = document.getElementById("studio-curtains-container");
-
-  if (pContainer) pContainer.style.display = "none";
-  if (isoCanvas) isoCanvas.style.display = "none";
-  if (curContainer) curContainer.style.display = "grid";
-
-  const probeLat = parseFloat(document.getElementById("studio-lat")?.value ?? "15.0");
-  const probeLon = parseFloat(document.getElementById("studio-lon")?.value ?? "65.0");
-
-  curContainer.innerHTML = `
-    <div class="studio-curtain-card">
-      <div class="scc-header"><span><i class="fa-solid fa-water"></i> South Boundary Curtain (5°N)</span><small>45°E to 105°E • 0–1000m</small></div>
-      <div id="plot-curtain-south" class="scc-plot"></div>
-    </div>
-    <div class="studio-curtain-card">
-      <div class="scc-header"><span><i class="fa-solid fa-crosshairs"></i> Latitude Probe Cut (${probeLat.toFixed(2)}°N)</span><small>West to East • 0–1000m</small></div>
-      <div id="plot-curtain-lat" class="scc-plot"></div>
-    </div>
-    <div class="studio-curtain-card">
-      <div class="scc-header"><span><i class="fa-solid fa-crosshairs"></i> Longitude Probe Cut (${probeLon.toFixed(2)}°E)</span><small>South to North • 0–1000m</small></div>
-      <div id="plot-curtain-lon" class="scc-plot"></div>
-    </div>
-    <div class="studio-curtain-card">
-      <div class="scc-header"><span><i class="fa-solid fa-water"></i> East Boundary Curtain (105°E)</span><small>5°N to 30°N • 0–1000m</small></div>
-      <div id="plot-curtain-east" class="scc-plot"></div>
-    </div>
-  `;
-
-  const colorscale = [
-    [0.00, "#03045e"], [0.17, "#023e8a"], [0.33, "#0077b6"],
-    [0.50, "#00b4d8"], [0.67, "#ffd166"], [0.83, "#f77f00"], [1.00, "#d62828"]
-  ];
-
-  function drawSlice(divId, xCoords, depths, zMatrix, xTitle) {
-    const trace = {
-      x: xCoords,
-      y: depths,
-      z: zMatrix,
-      type: "heatmap",
-      colorscale: colorscale,
-      zmin: 4.0, zmax: 30.0,
-      colorbar: { len: 0.9, thickness: 12, tickfont: { color: "#cbd5e1", size: 9 }, title: { text: "°C", font: { color: "#fff", size: 10 } } },
-      hovertemplate: "Depth: %{y}m<br>Coord: %{x:.2f}<br>Temp: %{z:.2f}°C<extra></extra>"
-    };
-
-    const layout = {
-      margin: { l: 45, r: 25, t: 10, b: 35 },
-      paper_bgcolor: "transparent",
-      plot_bgcolor: "#060e1f",
-      yaxis: { autorange: "reversed", title: { text: "Depth (m)", font: { color: "#94a3b8", size: 10 } }, tickfont: { color: "#cbd5e1", size: 9 } },
-      xaxis: { title: { text: xTitle, font: { color: "#94a3b8", size: 10 } }, tickfont: { color: "#cbd5e1", size: 9 } }
-    };
-
-    Plotly.react(divId, [trace], layout, { responsive: true, displayModeBar: false });
-  }
-
-  const depths = data.depths || [0, 5, 10, 20, 30, 50, 75, 100, 125, 150, 200, 300, 500, 700, 1000];
-  const lons = data.lons_all || data.lons || [];
-  const lats = data.lats_all || data.lats || [];
-
-  drawSlice("plot-curtain-south", lons, depths, data.south_slice, "Longitude (°E)");
-  drawSlice("plot-curtain-lat", lons, depths, data.lat_slice, "Longitude (°E)");
-  drawSlice("plot-curtain-lon", lats, depths, data.lon_slice, "Latitude (°N)");
-  drawSlice("plot-curtain-east", lats, depths, data.east_slice, "Latitude (°N)");
-}
-
 /* Render Fullscreen 3D Volumetric Surface in Separate Studio Page */
 async function renderStudio3D() {
   const container = document.getElementById("plotly-3d-studio-container");
@@ -1968,8 +1413,6 @@ async function renderStudio3D() {
   const studioDate    = document.getElementById("studio-date")?.value  ?? "";
   const colorscale    = document.getElementById("studio-colorscale")?.value ?? "Thermal";
   const wallOpacity   = isSolidVolume ? 1.0 : 0.40;
-
-  const selectedEngine = document.getElementById("studio-render-engine")?.value || "auto";
 
   // Keep badges and range inputs in sync
   const latBadge = document.getElementById("studio-lat-badge");
@@ -1997,26 +1440,6 @@ async function renderStudio3D() {
     const res = await fetch(url);
     const data = await res.json();
     if (data.status !== "success") throw new Error(data.message || "API error");
-    lastStudioVolumeData = data;
-
-    // Fast routing based on render engine selection or WebGL availability
-    const webglSupported = checkWebGLAvailable();
-    if (selectedEngine === "isometric" || (selectedEngine === "auto" && !webglSupported)) {
-      renderUniversalIsometric3D(data);
-      return;
-    }
-    if (selectedEngine === "curtains") {
-      renderMultiCurtains2D(data);
-      return;
-    }
-
-    // Attempting Hardware WebGL 3D
-    updateStudioEngineBadge("webgl");
-    const isoCanvas = document.getElementById("studio-isometric-canvas");
-    const curContainer = document.getElementById("studio-curtains-container");
-    if (container) container.style.display = "block";
-    if (isoCanvas) isoCanvas.style.display = "none";
-    if (curContainer) curContainer.style.display = "none";
 
     // Populate sidebar stats
     const setS = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
@@ -2591,14 +2014,7 @@ async function renderStudio3D() {
         height: 800, width: 1400, scale: 2
       }
     };
-    await Plotly.newPlot("plotly-3d-studio-container", plotlyData, layout, config);
-
-    // If WebGL failed silently inside Plotly, fallback instantly to Universal Isometric 3D Engine
-    if (container.textContent && (container.textContent.includes("WebGL is not supported") || container.textContent.includes("get.webgl.org"))) {
-      console.warn("Plotly WebGL unsupported message detected in container. Auto-falling back to Universal Isometric 3D Engine...");
-      renderUniversalIsometric3D(data);
-      return;
-    }
+    Plotly.newPlot("plotly-3d-studio-container", plotlyData, layout, config);
 
     // Dynamic Compass Needle Rotation on 3D Camera Orbit
     const graphDiv = document.getElementById("plotly-3d-studio-container");
@@ -2615,33 +2031,13 @@ async function renderStudio3D() {
     }
 
   } catch (err) {
+    container.innerHTML = `<div style="color:#f87171; padding:30px; background:#060e1f; border-radius:14px; font-family:Plus Jakarta Sans,sans-serif;"><i class="fa-solid fa-triangle-exclamation"></i> Error rendering 3D visualization: ${err.message}</div>`;
     console.error("Error rendering 3D Studio:", err);
-    if (lastStudioVolumeData) {
-      renderUniversalIsometric3D(lastStudioVolumeData);
-    } else {
-      container.innerHTML = `<div style="color:#f87171; padding:30px; background:#060e1f; border-radius:14px; font-family:Plus Jakarta Sans,sans-serif;"><i class="fa-solid fa-triangle-exclamation"></i> Error rendering 3D visualization: ${err.message}</div>`;
-    }
   }
 }
 
 /* Interactive 3D Camera Rotation via Compass (N, S, E, W, Reset) */
 function setCompassCamera(dir) {
-  const isoCanvas = document.getElementById("studio-isometric-canvas");
-  if (isoCanvas && isoCanvas.style.display !== "none") {
-    if (dir === 'N') { isoYaw = -Math.PI / 2; isoPitch = 0.55; }
-    else if (dir === 'S') { isoYaw = Math.PI / 2; isoPitch = 0.55; }
-    else if (dir === 'E') { isoYaw = 0; isoPitch = 0.55; }
-    else if (dir === 'W') { isoYaw = Math.PI; isoPitch = 0.55; }
-    else { isoYaw = -0.58; isoPitch = 0.52; isoZoom = 1.0; }
-    drawIsometricFrame();
-    const needle = document.getElementById("compass-needle");
-    if (needle) {
-      const deg = (isoYaw * 180 / Math.PI) + 90;
-      needle.style.transform = `rotate(${deg}deg)`;
-    }
-    return;
-  }
-
   const container = document.getElementById("plotly-3d-studio-container");
   if (!container || !container._fullLayout) return;
 
@@ -3158,110 +2554,14 @@ async function loadAgroAnalytics() {
 }
 
 /* ============================================================
-   Ocean Graph Neural Network (OceanGNN) Real Map & Live Client Module
+   Ocean Graph Neural Network (OceanGNN) Interactive Client Module
    ============================================================ */
 let currentGnnData = null;
 let selectedGnnNodeId = "GNN_AS_01";
 let currentGnnBasinFilter = "All";
-let gnnLeafletMap = null;
-let gnnEdgesLayer = null;
-let gnnNodesLayer = null;
-let gnnProbeLayer = null;
-let gnnActiveTileLayer = "sat";
-let gnnSatLayer = null;
-let gnnDarkLayer = null;
-let gnnFlowAnimation = true;
-let gnnCustomProbeData = null;
-
-function initGnnMap() {
-  if (gnnLeafletMap) return;
-
-  const mapContainer = document.getElementById("gnn-real-map");
-  if (!mapContainer) return;
-
-  gnnLeafletMap = L.map("gnn-real-map", {
-    center: [14.0, 75.0],
-    zoom: 5,
-    minZoom: 3,
-    maxZoom: 10,
-    zoomControl: true,
-  });
-
-  // 1. Esri World Imagery (High-Resolution Satellite)
-  gnnSatLayer = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
-    attribution: "&copy; Esri, Maxar, Earthstar Geographics & OceanEmbed GNN",
-    maxZoom: 10,
-  });
-
-  // 2. CartoDB Dark Matter (Deep Ocean Bathymetric Dark Mode)
-  gnnDarkLayer = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-    attribution: "&copy; OpenStreetMap &copy; CARTO",
-    maxZoom: 10,
-  });
-
-  // Default to Satellite
-  gnnSatLayer.addTo(gnnLeafletMap);
-  gnnActiveTileLayer = "sat";
-
-  // North Indian Ocean Domain Bounding Box (5°N–30°N, 45°E–105°E)
-  const bounds = [[5.0, 45.0], [30.0, 105.0]];
-  L.rectangle(bounds, {
-    color: "#38bdf8",
-    weight: 2,
-    dashArray: "6, 6",
-    fillColor: "#38bdf8",
-    fillOpacity: 0.04,
-  }).addTo(gnnLeafletMap);
-
-  // Layer groups
-  gnnEdgesLayer = L.layerGroup().addTo(gnnLeafletMap);
-  gnnNodesLayer = L.layerGroup().addTo(gnnLeafletMap);
-  gnnProbeLayer = L.layerGroup().addTo(gnnLeafletMap);
-
-  // Click anywhere on map to query real-time in-situ GNN subsurface profile
-  gnnLeafletMap.on("click", (e) => {
-    handleGnnMapClick(e.latlng.lat, e.latlng.lng);
-  });
-}
-
-function switchGnnTileLayer(layerKey) {
-  if (!gnnLeafletMap) return;
-  if (layerKey === "sat" && gnnActiveTileLayer !== "sat") {
-    gnnLeafletMap.removeLayer(gnnDarkLayer);
-    gnnSatLayer.addTo(gnnLeafletMap);
-    gnnActiveTileLayer = "sat";
-    document.getElementById("btn-gnn-tiles-sat")?.classList.add("active");
-    document.getElementById("btn-gnn-tiles-dark")?.classList.remove("active");
-  } else if (layerKey === "dark" && gnnActiveTileLayer !== "dark") {
-    gnnLeafletMap.removeLayer(gnnSatLayer);
-    gnnDarkLayer.addTo(gnnLeafletMap);
-    gnnActiveTileLayer = "dark";
-    document.getElementById("btn-gnn-tiles-dark")?.classList.add("active");
-    document.getElementById("btn-gnn-tiles-sat")?.classList.remove("active");
-  }
-}
-
-function toggleGnnFlowAnimation() {
-  gnnFlowAnimation = !gnnFlowAnimation;
-  const lbl = document.getElementById("lbl-flow-state");
-  const btn = document.getElementById("btn-gnn-toggle-flow");
-  if (lbl) lbl.textContent = `Flow: ${gnnFlowAnimation ? 'ON' : 'OFF'}`;
-  if (btn) {
-    if (gnnFlowAnimation) btn.classList.add("active");
-    else btn.classList.remove("active");
-  }
-  renderGnnMapElements();
-}
-
-function resetGnnMapView() {
-  if (gnnLeafletMap) {
-    gnnLeafletMap.setView([14.0, 75.0], 5);
-  }
-}
+let gnnCanvasInitialized = false;
 
 async function fetchGnnData(date) {
-  initGnnMap();
-
   const reqDate = date || document.getElementById("gnn-date")?.value || document.getElementById("select-date")?.value || "2024-06-01";
   const gnnDateEl = document.getElementById("gnn-date");
   if (gnnDateEl && gnnDateEl.value !== reqDate) gnnDateEl.value = reqDate;
@@ -3280,14 +2580,14 @@ async function fetchGnnData(date) {
     if (statNodes) statNodes.textContent = `${data.num_nodes} In-Situ Nodes`;
     if (statEdges) statEdges.textContent = `${data.num_edges} Hydrodynamic Edges`;
 
-    // 2. Render real Leaflet map elements
-    renderGnnMapElements();
+    // 2. Draw interactive graph on canvas
+    drawGnnGraph();
 
-    // 3. Select default or active node
+    // 3. Select current or default node
     if (!currentGnnData.nodes.some(n => n.id === selectedGnnNodeId)) {
       selectedGnnNodeId = currentGnnData.nodes[0]?.id || "GNN_AS_01";
     }
-    selectGnnNode(selectedGnnNodeId, false);
+    selectGnnNode(selectedGnnNodeId);
 
     // 4. Populate Benchmark Matrix
     populateGnnBenchmarkTable(data.benchmark);
@@ -3299,215 +2599,191 @@ async function fetchGnnData(date) {
 
 function filterGnnBasin(basin) {
   currentGnnBasinFilter = basin;
-  renderGnnMapElements();
+  drawGnnGraph();
 }
 
-function renderGnnMapElements() {
-  if (!gnnLeafletMap || !currentGnnData) return;
+function drawGnnGraph() {
+  const canvas = document.getElementById("gnn-graph-canvas");
+  if (!canvas || !currentGnnData) return;
 
-  gnnEdgesLayer.clearLayers();
-  gnnNodesLayer.clearLayers();
+  const container = document.getElementById("gnn-canvas-container");
+  if (container) {
+    canvas.width = container.clientWidth || 600;
+    canvas.height = container.clientHeight || 480;
+  }
 
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width;
+  const H = canvas.height;
+  const pad = 40;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Background subtle grid lines
+  ctx.strokeStyle = "rgba(56, 189, 248, 0.08)";
+  ctx.lineWidth = 1;
+  for (let lon = 50; lon <= 100; lon += 10) {
+    const x = pad + ((lon - 45.0) / 60.0) * (W - 2 * pad);
+    ctx.beginPath();
+    ctx.moveTo(x, pad);
+    ctx.lineTo(x, H - pad);
+    ctx.stroke();
+    ctx.fillStyle = "rgba(148, 163, 184, 0.4)";
+    ctx.font = "9px 'Plus Jakarta Sans', sans-serif";
+    ctx.fillText(`${lon}°E`, x - 10, H - pad + 15);
+  }
+  for (let lat = 10; lat <= 25; lat += 5) {
+    const y = H - pad - ((lat - 5.0) / 25.0) * (H - 2 * pad);
+    ctx.beginPath();
+    ctx.moveTo(pad, y);
+    ctx.lineTo(W - pad, y);
+    ctx.stroke();
+    ctx.fillStyle = "rgba(148, 163, 184, 0.4)";
+    ctx.font = "9px 'Plus Jakarta Sans', sans-serif";
+    ctx.fillText(`${lat}°N`, pad - 30, y + 3);
+  }
+
+  // Draw Peninsular India Coastline Contour outline in soft cyan
+  ctx.strokeStyle = "rgba(56, 189, 248, 0.35)";
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  const indiaPoints = [
+    [24.0, 68.0], [22.5, 69.5], [21.0, 72.5], [19.0, 72.8],
+    [15.5, 73.8], [12.0, 75.0], [8.0, 77.5], [8.5, 78.2],
+    [10.5, 79.8], [13.0, 80.3], [16.0, 81.5], [17.5, 83.3],
+    [20.0, 86.5], [21.5, 87.5], [22.0, 89.0]
+  ];
+  indiaPoints.forEach(([lat, lon], idx) => {
+    const px = pad + ((lon - 45.0) / 60.0) * (W - 2 * pad);
+    const py = H - pad - ((lat - 5.0) / 25.0) * (H - 2 * pad);
+    if (idx === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  });
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Filter nodes based on selected basin
   const visibleNodes = currentGnnData.nodes.filter(n => {
     if (currentGnnBasinFilter === "All") return true;
     return n.basin === currentGnnBasinFilter;
   });
-  const visibleMap = new Map(visibleNodes.map(n => [n.id, n]));
+  const visibleIds = new Set(visibleNodes.map(n => n.id));
 
-  // 1. Draw Hydrodynamic Edges with Animated Flowing Dashes
+  // Map node coordinates to pixel space
+  const nodeCoords = {};
+  currentGnnData.nodes.forEach(n => {
+    const x = pad + ((n.lon - 45.0) / 60.0) * (W - 2 * pad);
+    const y = H - pad - ((n.lat - 5.0) / 25.0) * (H - 2 * pad);
+    nodeCoords[n.id] = { x, y };
+  });
+
+  // Draw Hydrodynamic Edges
   currentGnnData.edges.forEach(e => {
-    const sNode = visibleMap.get(e.source);
-    const tNode = visibleMap.get(e.target);
-    if (!sNode || !tNode) return;
+    if (!visibleIds.has(e.source) || !visibleIds.has(e.target)) return;
+    const p1 = nodeCoords[e.source];
+    const p2 = nodeCoords[e.target];
+    if (!p1 || !p2) return;
 
-    const latlngs = [[sNode.lat, sNode.lon], [tNode.lat, tNode.lon]];
-    const weight = Math.max(1.8, e.weight * 3.6);
-    const opacity = Math.min(0.88, Math.max(0.35, e.weight * 0.9));
+    ctx.strokeStyle = `rgba(56, 189, 248, ${Math.min(0.8, e.weight * 0.7)})`;
+    ctx.lineWidth = Math.max(1, e.weight * 2.2);
 
-    const line = L.polyline(latlngs, {
-      color: "#38bdf8",
-      weight: weight,
-      opacity: opacity,
-      className: gnnFlowAnimation ? "gnn-flowing-edge" : "gnn-static-edge",
-    });
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.stroke();
 
-    const advVal = e.weight ? e.weight.toFixed(3) : "1.000";
-    line.bindTooltip(`
-      <div style="font-family:'Plus Jakarta Sans',sans-serif; font-size:11px; color:#0f172a;">
-        <strong>Hydrodynamic Advection Edge</strong><br>
-        <span style="color:#0284c7; font-weight:700;">${sNode.name}</span> → <span style="color:#0284c7; font-weight:700;">${tNode.name}</span><br>
-        <span>Advection Coupling Weight: <b>${advVal}</b></span><br>
-        <span style="color:#64748b; font-size:10px;">Message passing along geostrophic surface current</span>
-      </div>
-    `, { sticky: true });
-
-    line.addTo(gnnEdgesLayer);
+    // Directional current arrow indicator
+    const midX = (p1.x + p2.x) / 2;
+    const midY = (p1.y + p2.y) / 2;
+    ctx.fillStyle = "rgba(56, 189, 248, 0.85)";
+    ctx.beginPath();
+    ctx.arc(midX, midY, 2.5, 0, Math.PI * 2);
+    ctx.fill();
   });
 
-  // 2. Draw In-Situ Graph Nodes with Basin Color Coding
+  // Draw Nodes
   visibleNodes.forEach(n => {
+    const { x, y } = nodeCoords[n.id];
     const isSelected = (n.id === selectedGnnNodeId);
-    let basinClass = "basin-as";
-    if (n.basin === "Bay of Bengal") basinClass = "basin-bob";
-    else if (n.basin === "Equatorial NIO") basinClass = "basin-equ";
 
-    const customIcon = L.divIcon({
-      className: "gnn-node-icon-wrapper",
-      html: `
-        <div class="gnn-leaflet-node ${basinClass} ${isSelected ? 'is-selected' : ''}">
-          <div class="gnn-node-halo"></div>
-          <div class="gnn-node-core"></div>
-        </div>
-      `,
-      iconSize: [26, 26],
-      iconAnchor: [13, 13]
-    });
+    // Basin color
+    let baseCol = "#38bdf8"; // Arabian Sea
+    if (n.basin === "Bay of Bengal") baseCol = "#34d399";
+    else if (n.basin === "Equatorial NIO") baseCol = "#f59e0b";
 
-    const marker = L.marker([n.lat, n.lon], { icon: customIcon });
+    // Selected outer glowing ring
+    if (isSelected) {
+      ctx.strokeStyle = baseCol;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(x, y, 16, 0, Math.PI * 2);
+      ctx.stroke();
 
-    marker.bindTooltip(`
-      <div style="font-family:'Plus Jakarta Sans',sans-serif; font-size:11px; color:#0f172a;">
-        <strong>${n.name}</strong> (${n.id})<br>
-        <span>Basin: <b>${n.basin}</b></span><br>
-        <span>Position: ${n.lat.toFixed(2)}°N, ${n.lon.toFixed(2)}°E</span><br>
-        <span>Surface SST: <b>${n.surface_variables?.sst_c || '--'} °C</b></span><br>
-        <span style="color:#0284c7; font-size:10px; font-weight:700;">Click to inspect 15-depth vertical profile</span>
-      </div>
-    `, { direction: "top", offset: [0, -10] });
-
-    marker.on("click", (evt) => {
-      L.DomEvent.stopPropagation(evt);
-      selectGnnNode(n.id, false);
-    });
-
-    marker.addTo(gnnNodesLayer);
-  });
-}
-
-/* User clicks anywhere on real ocean map to run real-time pointwise GNN query */
-async function handleGnnMapClick(lat, lon) {
-  if (lat < 5.0 || lat > 30.0 || lon < 45.0 || lon > 105.0) {
-    const banner = document.getElementById("gnn-probe-banner-text");
-    if (banner) {
-      banner.innerHTML = `<span style="color:#f87171;"><i class="fa-solid fa-triangle-exclamation"></i> Location (${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E) is outside the North Indian Ocean domain (5°N–30°N, 45°E–105°E).</span>`;
+      ctx.fillStyle = "rgba(56, 189, 248, 0.25)";
+      ctx.beginPath();
+      ctx.arc(x, y, 16, 0, Math.PI * 2);
+      ctx.fill();
     }
-    return;
-  }
 
-  gnnProbeLayer.clearLayers();
+    // Node core
+    ctx.fillStyle = isSelected ? "#ffffff" : baseCol;
+    ctx.beginPath();
+    ctx.arc(x, y, isSelected ? 9 : 7, 0, Math.PI * 2);
+    ctx.fill();
 
-  const probeIcon = L.divIcon({
-    className: "gnn-probe-icon-wrapper",
-    html: `
-      <div class="gnn-custom-probe-marker">
-        <div class="probe-halo"></div>
-        <div class="probe-core"></div>
-      </div>
-    `,
-    iconSize: [28, 28],
-    iconAnchor: [14, 14]
+    ctx.strokeStyle = "#040a16";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Node text label
+    ctx.fillStyle = isSelected ? "#ffffff" : "#cbd5e1";
+    ctx.font = isSelected ? "bold 11px 'Plus Jakarta Sans', sans-serif" : "10px 'Plus Jakarta Sans', sans-serif";
+    ctx.fillText(n.name.split(" ")[0] + (n.name.includes("Bay") ? " BoB" : ""), x + 12, y + 4);
   });
 
-  const marker = L.marker([lat, lon], { icon: probeIcon }).addTo(gnnProbeLayer);
-  marker.bindPopup(`
-    <div style="font-family:'Plus Jakarta Sans',sans-serif; font-size:12px; color:#0f172a;">
-      <strong style="color:#ec4899;">Custom In-Situ Query Probe</strong><br>
-      Position: <b>${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E</b><br>
-      <span style="color:#64748b; font-size:10px;">Hydrodynamic message-passing active from 3 nearest basin stations.</span>
-    </div>
-  `).openPopup();
+  // Attach click listener once
+  if (!gnnCanvasInitialized) {
+    canvas.addEventListener("click", (evt) => {
+      const rect = canvas.getBoundingClientRect();
+      const clickX = evt.clientX - rect.left;
+      const clickY = evt.clientY - rect.top;
 
-  // Draw temporary animated advection edges from 3 nearest stations to this custom probe
-  if (currentGnnData && currentGnnData.nodes) {
-    const nodesWithDist = currentGnnData.nodes.map(n => {
-      const d = Math.sqrt((n.lat - lat)**2 + (n.lon - lon)**2);
-      return { node: n, dist: d };
-    }).sort((a, b) => a.dist - b.dist);
+      let closest = null;
+      let minD = 24;
 
-    const nearest3 = nodesWithDist.slice(0, 3);
-    nearest3.forEach(({ node }) => {
-      L.polyline([[node.lat, node.lon], [lat, lon]], {
-        color: "#ec4899",
-        weight: 2.2,
-        dashArray: "4, 6",
-        className: "gnn-flowing-edge",
-        opacity: 0.85
-      }).addTo(gnnProbeLayer);
+      currentGnnData.nodes.forEach(n => {
+        const pt = nodeCoords[n.id];
+        if (!pt) return;
+        const d = Math.sqrt((clickX - pt.x)**2 + (clickY - pt.y)**2);
+        if (d < minD) {
+          minD = d;
+          closest = n.id;
+        }
+      });
+
+      if (closest) {
+        selectGnnNode(closest);
+      }
     });
-  }
 
-  const banner = document.getElementById("gnn-probe-banner-text");
-  if (banner) {
-    banner.innerHTML = `<span style="color:#ec4899;"><i class="fa-solid fa-spinner fa-spin"></i> Running real-time GNN message passing for probe at <strong>${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E</strong>...</span>`;
-  }
+    window.addEventListener("resize", () => {
+      if (document.getElementById("gnn-page") && !document.getElementById("gnn-page").classList.contains("hidden")) {
+        drawGnnGraph();
+      }
+    });
 
-  try {
-    const date = document.getElementById("gnn-date")?.value || "2024-06-01";
-    const res = await fetch(`/api/predict?lat=${lat}&lon=${lon}&date=${date}`);
-    const predData = await res.json();
-    if (predData.status !== "success") throw new Error(predData.message || "Prediction error");
-
-    gnnCustomProbeData = {
-      id: "CUSTOM_PROBE",
-      name: `Real-Time Probe (${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E)`,
-      basin: (lon < 77.0 && lat >= 10.0) ? "Arabian Sea" : (lon >= 77.0 && lat >= 10.0) ? "Bay of Bengal" : "Equatorial NIO",
-      lat: lat,
-      lon: lon,
-      surface_variables: {
-        sst_c: predData.surface_observations?.sst ?? 28.5,
-        sss_psu: predData.surface_observations?.sss ?? 35.0,
-        ssh_m: predData.surface_observations?.ssh ?? 0.05,
-        u_curr: predData.surface_observations?.u ?? 0.04,
-        v_curr: predData.surface_observations?.v ?? -0.02,
-        wind_u: predData.surface_observations?.eastward_wind ?? 3.5,
-        wind_v: predData.surface_observations?.northward_wind ?? 1.2
-      },
-      profile: predData.profile.map(p => ({
-        depth_m: p.depth_m,
-        temperature_c: p.temperature_c,
-        truth_temperature_c: p.truth_temperature_c,
-        error_c: p.error_c
-      })),
-      d20_m: predData.diagnostics?.d20_depth_m ?? 88.0,
-      deep_temp_1000m: predData.profile?.find(p => p.depth_m >= 900)?.temperature_c ?? 5.5,
-      embedding_sample: [0.412, -0.189, 0.724, 0.052, -0.631, 0.298]
-    };
-
-    renderNodeDetails(gnnCustomProbeData);
-
-    if (banner) {
-      banner.innerHTML = `<span style="color:#4ade80;"><i class="fa-solid fa-circle-check"></i> Real-time GNN subsurface reconstruction complete for <strong>${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E</strong>. Inspected on right panel.</span>`;
-    }
-
-  } catch (err) {
-    console.error("GNN Map Click Probe Error:", err);
-    if (banner) {
-      banner.innerHTML = `<span style="color:#f87171;"><i class="fa-solid fa-triangle-exclamation"></i> Error querying coordinate (${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E): ${err.message}</span>`;
-    }
+    gnnCanvasInitialized = true;
   }
 }
 
-function selectGnnNode(nodeId, panToNode = false) {
+function selectGnnNode(nodeId) {
   selectedGnnNodeId = nodeId;
   if (!currentGnnData || !currentGnnData.nodes) return;
 
   const node = currentGnnData.nodes.find(n => n.id === nodeId);
   if (!node) return;
 
-  renderNodeDetails(node);
-  renderGnnMapElements();
-
-  if (panToNode && gnnLeafletMap) {
-    gnnLeafletMap.panTo([node.lat, node.lon], { animate: true, duration: 0.6 });
-  }
-
-  const banner = document.getElementById("gnn-probe-banner-text");
-  if (banner) {
-    banner.innerHTML = `<span>Inspecting <strong>${node.name}</strong> (${node.id}) @ ${node.lat.toFixed(2)}°N, ${node.lon.toFixed(2)}°E. Click any other node or ocean location to query.</span>`;
-  }
-}
-
-function renderNodeDetails(node) {
   // 1. Update text banners
   const elId = document.getElementById("gnn-selected-node-id");
   const elName = document.getElementById("gnn-node-name");
@@ -3596,6 +2872,9 @@ function renderNodeDetails(node) {
 
     Plotly.newPlot("gnn-profile-chart", traces, layout, { responsive: true, displayModeBar: false });
   }
+
+  // 6. Redraw graph to highlight selected node
+  drawGnnGraph();
 }
 
 function populateGnnBenchmarkTable(benchmarkList) {
