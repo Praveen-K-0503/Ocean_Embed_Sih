@@ -2116,128 +2116,20 @@ select:focus {
 [data-theme="dark"] .studio-temp-legend { background: rgba(240, 249, 255, 0.95); border-color: rgba(56, 189, 248, 0.4); }
 [data-theme="dark"] .studio-depth-info { background: rgba(240, 249, 255, 0.95); border-color: rgba(56, 189, 248, 0.4); }
 
-/* Studio View Mode Toggle Buttons */
-.studio-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.studio-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.studio-view-toggle-group {
-  display: inline-flex;
-  background: var(--bg-card-alt);
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  padding: 3px;
-  gap: 3px;
-}
-
-.btn-studio-view {
-  background: transparent;
-  border: none;
-  color: var(--text-secondary);
-  padding: 6px 14px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  transition: all 0.2s ease;
-}
-
-.btn-studio-view:hover {
-  color: var(--accent-cyan);
-  background: rgba(56, 189, 248, 0.15);
-}
-
-.btn-studio-view.active {
-  background: #0284c7;
-  color: #ffffff !important;
-  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
-}
-
-/* Studio Leaflet Map Wrapper */
-.studio-map-wrapper {
+/* Studio 3D Canvas Full-Width Layout */
+.studio-canvas-wrapper {
   flex: 1;
-  background: #081528;
-  border: 1px solid rgba(56, 189, 248, 0.4);
-  border-radius: 14px;
-  overflow: hidden;
+  width: 100%;
+  min-height: 620px;
+  height: 620px;
   position: relative;
-  min-height: 560px;
-  height: 560px;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 4px 25px rgba(14, 165, 233, 0.15);
+  overflow: hidden;
+  background: #060e1f;
+  border: 1px solid #38bdf8;
+  border-radius: 14px;
+  box-shadow: 0 4px 30px rgba(14, 165, 233, 0.2);
 }
 
-.studio-map-header {
-  height: 38px;
-  background: #0c1c33;
-  border-bottom: 1px solid rgba(56, 189, 248, 0.25);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 14px;
-  font-size: 12px;
-  color: #bae6fd;
-}
-
-.studio-map-header .smh-title {
-  font-weight: 700;
-  color: #ffffff;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.studio-map-header .smh-badge {
-  font-size: 11px;
-  color: #38bdf8;
-  background: rgba(56, 189, 248, 0.15);
-  border: 1px solid rgba(56, 189, 248, 0.3);
-  padding: 2px 8px;
-  border-radius: 6px;
-}
-
-/* Dual view layout */
-.studio-body-flex.view-dual .studio-map-wrapper {
-  flex: 1;
-  min-width: 320px;
-}
-
-.studio-body-flex.view-dual .studio-canvas-wrapper {
-  flex: 1.25;
-  min-width: 360px;
-}
-
-.studio-body-flex.view-3d .studio-map-wrapper {
-  display: none !important;
-}
-
-.studio-body-flex.view-3d .studio-canvas-wrapper {
-  flex: 1;
-  width: 100%;
-}
-
-.studio-body-flex.view-map .studio-canvas-wrapper {
-  display: none !important;
-}
-
-.studio-body-flex.view-map .studio-map-wrapper {
-  flex: 1;
-  width: 100%;
-}
 
 /* ============================================================
    ARGO source label
