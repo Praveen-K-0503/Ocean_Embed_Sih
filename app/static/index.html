@@ -321,17 +321,33 @@
                 <!-- Tab 2: Ocean Depth Section -->
                 <div id="transect-tab" class="tab-pane">
                   <div class="transect-controls">
-                    <label>Transect Cut along:</label>
+                    <label><i class="fa-solid fa-scissors"></i> Cut Axis:</label>
                     <select id="transect-axis" onchange="onTransectAxisChange()">
-                      <option value="lat">Latitude Fix (West→East Longitude)</option>
-                      <option value="lon">Longitude Fix (South→North Latitude)</option>
+                      <option value="lat">Latitude Fix (West→East Longitude Curtain)</option>
+                      <option value="lon">Longitude Fix (South→North Latitude Curtain)</option>
                     </select>
                     <span id="transect-location-label" class="badge">Latitude 15.00°N</span>
+
+                    <label style="margin-left: 10px;"><i class="fa-solid fa-eye"></i> Field:</label>
+                    <select id="transect-mode" onchange="renderTransect()">
+                      <option value="pred">OceanEmbed AI Reconstruction (°C)</option>
+                      <option value="truth">GLORYS Reference Truth (°C)</option>
+                      <option value="diff">Reconstruction Bias (|Error| °C)</option>
+                    </select>
+
+                    <div class="transect-action-group">
+                      <button class="btn-sm btn-outline active" id="btn-toggle-transect-d20" onclick="toggleTransectD20()" title="Toggle D20 Thermocline Isoline">
+                        <i class="fa-solid fa-water"></i> D20 Line
+                      </button>
+                      <button class="btn-sm btn-outline" id="btn-toggle-transect-table" onclick="toggleTransectTable()" title="Toggle Tabular Numeric Matrix">
+                        <i class="fa-solid fa-table"></i> Data Table
+                      </button>
+                    </div>
                   </div>
 
                   <!-- Slider Row -->
                   <div class="slider-row">
-                    <span class="slider-label" id="slider-min-label">45°E</span>
+                    <span class="slider-label" id="slider-min-label">5°N</span>
                     <input type="range" id="transect-slider"
                       min="5" max="30" step="0.25" value="15"
                       oninput="onTransectSlide(this.value)"
@@ -341,7 +357,8 @@
                   </div>
 
                   <div class="transect-container" id="transect-view">
-                    <!-- Plotly Heatmap -->
+                    <div id="transect-plot" style="width: 100%; height: 380px;"></div>
+                    <div id="transect-table-wrapper" style="display: none; padding: 12px; overflow-x: auto;"></div>
                   </div>
                 </div>
 

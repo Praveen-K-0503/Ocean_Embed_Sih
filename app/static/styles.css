@@ -946,6 +946,7 @@ select:focus {
 .transect-controls {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 12px;
   font-size: 12px;
@@ -953,6 +954,22 @@ select:focus {
 
 .transect-controls select {
   width: auto;
+  font-weight: 500;
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+
+.transect-action-group {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.transect-action-group .btn-sm.active {
+  background: var(--primary, #0284c7);
+  color: #ffffff;
+  border-color: var(--primary, #0284c7);
 }
 
 .badge {
@@ -967,13 +984,15 @@ select:focus {
 }
 
 .transect-container {
-  height: 310px;
+  min-height: 400px;
   overflow-y: auto;
-  overflow-x: auto;
+  overflow-x: hidden;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 10px;
+  position: relative;
 }
+
 
 /* Transect Color Table */
 .transect-table {

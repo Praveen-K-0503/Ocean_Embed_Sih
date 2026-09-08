@@ -309,6 +309,34 @@ class OceanEmbedPredictor:
             coords = [round(float(y), 2) for y in self.lats]
             fixed_name = f"Longitude {self.lons[j_lon]:.2f}°E"
 
+        # Calculate D20 isotherm along the curtain
+        d20_list = []
+        for c_idx in range(curtain_pred.shape[1]):
+            col = curtain_pred[:, c_idx]
+            valid_col = col[np.isfinite(col)]
+            if len(valid_col) == 0:
+                d20_list.append(None)
+                continue
+            idx = np.where(col < 20.0)[0]
+            if len(idx) == 0:
+                d20_list.append(float(self.depths[-1]))
+            elif idx[0] == 0:
+                d20_list.append(float(self.depths[0]))
+            else:
+                k = idx[0]
+                t1, t2 = float(col[k - 1]), float(col[k])
+                z1, z2 = float(self.depths[k - 1]), float(self.depths[k])
+                if t1 != t2:
+                    d20_val = z1 + (20.0 - t1) * (z2 - z1) / (t2 - t1)
+                else:
+                    d20_val = z1
+                d20_list.append(round(float(d20_val), 1))
+
+        pred_matrix = np.where(np.isnan(curtain_pred), None, np.round(curtain_pred, 2)).tolist()
+        truth_matrix = np.where(np.isnan(curtain_truth), None, np.round(curtain_truth, 2)).tolist()
+        err_arr = np.abs(curtain_pred - curtain_truth)
+        err_matrix = np.where(np.isnan(err_arr), None, np.round(err_arr, 2)).tolist()
+
         return {
             "status": "success",
             "date": date_str,
@@ -316,9 +344,13 @@ class OceanEmbedPredictor:
             "fixed_location": fixed_name,
             "depths": [float(d) for d in self.depths],
             "coordinates": coords,
-            "predicted_curtain": np.where(np.isnan(curtain_pred), None, np.round(curtain_pred, 2)).tolist(),
-            "truth_curtain": np.where(np.isnan(curtain_truth), None, np.round(curtain_truth, 2)).tolist(),
+            "temperature_matrix": pred_matrix,
+            "predicted_curtain": pred_matrix,
+            "truth_curtain": truth_matrix,
+            "error_curtain": err_matrix,
+            "d20_isotherm": d20_list,
         }
+
 
     def _clean_wall_slice(self, slice_2d: np.ndarray, default_profile: np.ndarray) -> np.ndarray:
         """Interpolate across land NaNs to guarantee continuous, solid volumetric curtains."""
