@@ -601,15 +601,6 @@
                 <option value="Cividis">Cividis</option>
               </select>
             </div>
-            <div class="studio-control-item">
-              <label><i class="fa-solid fa-display"></i> 3D Render Engine</label>
-              <select id="studio-render-engine" onchange="renderStudio3D()">
-                <option value="auto" selected>Universal Auto (WebGL / Software Canvas)</option>
-                <option value="isometric">Universal Isometric 3D Prism (Canvas 2D)</option>
-                <option value="curtains">Multi-Curtain Explorer (2D Depth Heatmaps)</option>
-                <option value="webgl">Hardware WebGL 3D (Plotly Surface)</option>
-              </select>
-            </div>
 
             <button class="btn-studio-render" onclick="renderStudio3D()"><i class="fa-solid fa-rotate"></i> Re-Render</button>
           </div>
@@ -680,13 +671,7 @@
                 <div class="template-subtitle" id="template-date-subtitle">North Indian Ocean | 2024-06-01</div>
               </div>
 
-              <!-- Active Render Engine Badge -->
-              <div class="studio-engine-badge" id="studio-engine-badge">
-                <span class="seb-dot"></span>
-                <span id="studio-engine-text">Universal 3D Engine Active</span>
-              </div>
-
-              <div class="compass-rose-overlay" id="studio-compass-rose" title="Interactive 3D Compass — Click N, S, E, W to rotate 3D view or center dial to reset">
+              <div class="compass-rose-overlay" title="Interactive 3D Compass — Click N, S, E, W to rotate 3D view or center dial to reset">
                 <div class="compass-rose">
                   <span class="c-point c-n" onclick="setCompassCamera('N')" title="Look from South to North">N</span>
                   <span class="c-point c-w" onclick="setCompassCamera('W')" title="Look from East to West">W</span>
@@ -696,17 +681,7 @@
                 </div>
               </div>
 
-              <!-- 1. Hardware WebGL Plotly Container -->
               <div id="plotly-3d-studio-container" style="width:100%; height:100%;"></div>
-
-              <!-- 2. Universal Software Isometric 3D Canvas (Zero WebGL Dependencies - 100% Reliable) -->
-              <canvas id="studio-isometric-canvas" style="display:none; width:100%; height:100%; cursor:grab;"></canvas>
-
-              <!-- 3. Multi-Curtain 2D Heatmap Explorer Container -->
-              <div id="studio-curtains-container" style="display:none; width:100%; height:100%; overflow-y:auto; padding:16px;"></div>
-
-              <!-- Hover Tooltip for Software Canvas -->
-              <div id="studio-iso-tooltip" class="studio-iso-tooltip" style="display:none;"></div>
             </div>
           </div>
 
