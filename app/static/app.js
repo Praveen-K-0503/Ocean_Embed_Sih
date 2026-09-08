@@ -38,8 +38,8 @@ function initOceanCanvasWave() {
     const isDark = document.documentElement.getAttribute("data-theme") === "dark";
     const bgGradient = ctx.createLinearGradient(0, 0, 0, height);
     if (isDark) {
-      bgGradient.addColorStop(0, "#050a17");
-      bgGradient.addColorStop(1, "#0a1628");
+      bgGradient.addColorStop(0, "#bae6fd");
+      bgGradient.addColorStop(1, "#e0f2fe");
     } else {
       bgGradient.addColorStop(0, "#f0f9ff");
       bgGradient.addColorStop(1, "#e0f2fe");
@@ -48,7 +48,7 @@ function initOceanCanvasWave() {
     ctx.fillRect(0, 0, width, height);
 
     const waveColors = isDark
-      ? ["rgba(14, 165, 233, 0.25)", "rgba(56, 189, 248, 0.2)", "rgba(2, 132, 199, 0.15)", "rgba(16, 185, 129, 0.1)"]
+      ? ["rgba(2, 132, 199, 0.22)", "rgba(56, 189, 248, 0.28)", "rgba(14, 165, 233, 0.18)", "rgba(56, 189, 248, 0.12)"]
       : ["rgba(14, 165, 233, 0.2)", "rgba(56, 189, 248, 0.25)", "rgba(2, 132, 199, 0.15)", "rgba(56, 189, 248, 0.1)"];
 
     for (let layer = 0; layer < 4; layer++) {
@@ -78,19 +78,13 @@ function initOceanCanvasWave() {
    Light / Dark Mode Theme System
    ============================================================ */
 function initTheme() {
-  let savedTheme = localStorage.getItem("oceanembed_theme") || "light";
-  if (savedTheme === "dark") {
-    savedTheme = "light";
-    localStorage.setItem("oceanembed_theme", "light");
-  }
-  applyTheme(savedTheme);
+  localStorage.setItem("oceanembed_theme", "dark");
+  applyTheme("dark");
 }
 
 function toggleTheme() {
-  const currentTheme = document.documentElement.getAttribute("data-theme") || "light";
-  const newTheme = currentTheme === "dark" ? "light" : "dark";
-  applyTheme(newTheme);
-  localStorage.setItem("oceanembed_theme", newTheme);
+  applyTheme("dark");
+  localStorage.setItem("oceanembed_theme", "dark");
 }
 
 function applyTheme(theme) {
@@ -114,9 +108,9 @@ function applyTheme(theme) {
 
   // Update Chart.js profile colors if active
   if (profileChart && profileChart.options && profileChart.options.scales) {
-    const textColor = isDark ? "#cbd5e1" : "#475569";
-    const gridColor = isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)";
-    const legendColor = isDark ? "#f8fafc" : "#0f172a";
+    const textColor = isDark ? "#0c4a6e" : "#475569";
+    const gridColor = isDark ? "rgba(56, 189, 248, 0.2)" : "rgba(0, 0, 0, 0.06)";
+    const legendColor = isDark ? "#0c4a6e" : "#0f172a";
 
     profileChart.options.scales.x.ticks.color = textColor;
     profileChart.options.scales.x.title.color = textColor;
@@ -542,7 +536,7 @@ function updateProfileChartData() {
 
   const STANDARD_DEPTHS = [0, 5, 10, 20, 30, 50, 75, 100, 125, 150, 200, 300, 500, 700, 1000];
   const isDark = document.documentElement.getAttribute("data-theme") === "dark";
-  const textColor = isDark ? "#cbd5e1" : "#475569";
+  const textColor = isDark ? "#0c4a6e" : "#475569";
 
   // Index profile points strictly by integer depth level
   const profileMap = new Map();
@@ -751,8 +745,8 @@ function renderDepthValidationPanel(data) {
   const corrs  = dm.map(d => parseFloat(d.correlation.toFixed(4)));
 
   const isDark = document.documentElement.getAttribute("data-theme") === "dark";
-  const textCol = isDark ? "#cbd5e1" : "#475569";
-  const gridCol = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)";
+  const textCol = isDark ? "#0c4a6e" : "#475569";
+  const gridCol = isDark ? "rgba(56, 189, 248, 0.2)" : "rgba(0,0,0,0.05)";
 
   // RMSE Bar Chart
   const rCtx = document.getElementById("depthRmseChart");
@@ -1163,9 +1157,9 @@ function drawTransectPlot(data) {
   }
 
   const isDark = document.documentElement.getAttribute("data-theme") === "dark";
-  const fontColor = isDark ? "#e2e8f0" : "#1e293b";
-  const gridColor = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)";
-  const plotBg = isDark ? "#0f172a" : "#ffffff";
+  const fontColor = isDark ? "#0c4a6e" : "#1e293b";
+  const gridColor = isDark ? "rgba(56, 189, 248, 0.2)" : "rgba(0,0,0,0.06)";
+  const plotBg = isDark ? "#f0f9ff" : "#ffffff";
 
   const traces = [];
 
@@ -1539,6 +1533,7 @@ async function renderStudio3D() {
           },
           opacity: wallOpacity,
           showscale: true,
+          hoverinfo: "skip",
           lighting: solidLighting
         });
 
@@ -1556,6 +1551,7 @@ async function renderStudio3D() {
           cmin: 0, cmax: 30,
           opacity: wallOpacity,
           showscale: false,
+          hoverinfo: "skip",
           lighting: solidLighting
         });
 
@@ -1573,6 +1569,7 @@ async function renderStudio3D() {
           cmin: 0, cmax: 30,
           opacity: wallOpacity,
           showscale: false,
+          hoverinfo: "skip",
           lighting: solidLighting
         });
 
@@ -1590,6 +1587,7 @@ async function renderStudio3D() {
           cmin: 0, cmax: 30,
           opacity: wallOpacity,
           showscale: false,
+          hoverinfo: "skip",
           lighting: solidLighting
         });
       }
@@ -1673,6 +1671,7 @@ async function renderStudio3D() {
         cmin: 0, cmax: 40,
         opacity: 1.0,
         showscale: false,
+        hoverinfo: "skip",
         lighting: solidLighting
       });
 
@@ -1694,6 +1693,7 @@ async function renderStudio3D() {
           cmax: 30,
           opacity: wallOpacity,
           showscale: false,
+          hoverinfo: "skip",
           lighting: solidLighting
         });
       }
@@ -1708,6 +1708,7 @@ async function renderStudio3D() {
           y: data.coastlines.lats,
           z: data.coastlines.lats.map(() => 0.8),
           marker: { size: 2.2, color: "#ffffff", opacity: 1.0 },
+          hoverinfo: "skip",
           showlegend: false
         });
       }
@@ -1715,39 +1716,48 @@ async function renderStudio3D() {
       sceneConfig = {
         xaxis: {
           title: { text: "", font: { color: axisColor, size: 10 } },
+          tickmode: "array",
           tickvals: [45, 60, 75, 90, 105],
           ticktext: ["45°E", "60°E", "75°E", "90°E", "105°E"],
           range: [45, 105],
-          tickfont: { color: "#e2e8f0", size: 10, family: "Plus Jakarta Sans, sans-serif" },
-          gridcolor: "rgba(56,189,248,0.18)",
+          tickfont: { color: "#ffffff", size: 10, family: "Plus Jakarta Sans, sans-serif" },
+          gridcolor: "rgba(56,189,248,0.20)",
           showgrid: true,
           zeroline: false,
-          showbackground: true,
-          backgroundcolor: "rgba(6,14,31,0.95)"
+          showbackground: false,
+          mirror: false,
+          showspikes: false,
+          spikesides: false
         },
         yaxis: {
           title: { text: "", font: { color: axisColor, size: 10 } },
+          tickmode: "array",
           tickvals: [10, 15, 20, 25, 30],
           ticktext: ["10°N", "15°N", "20°N", "25°N", "30°N"],
           range: [5, 30],
-          tickfont: { color: "#e2e8f0", size: 10, family: "Plus Jakarta Sans, sans-serif" },
-          gridcolor: "rgba(56,189,248,0.18)",
+          tickfont: { color: "#ffffff", size: 10, family: "Plus Jakarta Sans, sans-serif" },
+          gridcolor: "rgba(56,189,248,0.20)",
           showgrid: true,
           zeroline: false,
-          showbackground: true,
-          backgroundcolor: "rgba(6,14,31,0.95)"
+          showbackground: false,
+          mirror: false,
+          showspikes: false,
+          spikesides: false
         },
         zaxis: {
           title: { text: "Depth", font: { color: "#ffffff", size: 12, family: "Plus Jakarta Sans, sans-serif" } },
+          tickmode: "array",
           tickvals: [depthToZ(0), depthToZ(200), depthToZ(500), depthToZ(1000)],
           ticktext: ["0m", "200m", "500m", "1000m"],
           range: [-1000, 0],
-          tickfont: { color: "#e2e8f0", size: 11, family: "JetBrains Mono, monospace", weight: "700" },
-          gridcolor: "rgba(56,189,248,0.22)",
+          tickfont: { color: "#ffffff", size: 11, family: "JetBrains Mono, monospace", weight: "700" },
+          gridcolor: "rgba(56,189,248,0.25)",
           showgrid: true,
           zeroline: false,
-          showbackground: true,
-          backgroundcolor: "rgba(6,14,31,0.95)"
+          showbackground: false,
+          mirror: false,
+          showspikes: false,
+          spikesides: false
         },
         camera: {
           eye: { x: 1.45, y: -1.75, z: 0.95 },
@@ -1803,9 +1813,9 @@ async function renderStudio3D() {
       });
 
       sceneConfig = {
-        xaxis: { title: { text: xLabel, font: { color: axisColor, size: 10 } }, tickfont: { color: tickColor, size: 9 }, gridcolor: gridCol, backgroundcolor: "rgba(6,14,31,0.7)" },
-        yaxis: { title: { text: "Depth (meters)", font: { color: axisColor, size: 10 } }, autorange: "reversed", tickfont: { color: tickColor, size: 9 }, gridcolor: gridCol, backgroundcolor: "rgba(6,14,31,0.7)" },
-        zaxis: { title: { text: "Temp (°C)", font: { color: axisColor, size: 10 } }, tickfont: { color: tickColor, size: 9 }, gridcolor: gridCol, backgroundcolor: "rgba(6,14,31,0.7)" },
+        xaxis: { title: { text: xLabel, font: { color: axisColor, size: 10 } }, tickfont: { color: tickColor, size: 9 }, gridcolor: gridCol, showbackground: false, mirror: false, showspikes: false, spikesides: false },
+        yaxis: { title: { text: "Depth (meters)", font: { color: axisColor, size: 10 } }, autorange: "reversed", tickfont: { color: tickColor, size: 9 }, gridcolor: gridCol, showbackground: false, mirror: false, showspikes: false, spikesides: false },
+        zaxis: { title: { text: "Temp (°C)", font: { color: axisColor, size: 10 } }, tickfont: { color: tickColor, size: 9 }, gridcolor: gridCol, showbackground: false, mirror: false, showspikes: false, spikesides: false },
         camera: {
           eye: { x: 1.3, y: 1.3, z: 0.8 },
           center: { x: 0, y: 0, z: 0 },
@@ -1852,9 +1862,9 @@ async function renderStudio3D() {
       });
 
       sceneConfig = {
-        xaxis: { title: { text: "Longitude (°E)", font: { color: axisColor, size: 10 } }, tickfont: { color: tickColor, size: 9 }, gridcolor: gridCol, backgroundcolor: "rgba(6,14,31,0.7)" },
-        yaxis: { title: { text: "Latitude (°N)", font: { color: axisColor, size: 10 } }, tickfont: { color: tickColor, size: 9 }, gridcolor: gridCol, backgroundcolor: "rgba(6,14,31,0.7)" },
-        zaxis: { title: { text: "D20 Depth (m)", font: { color: axisColor, size: 10 } }, autorange: "reversed", tickfont: { color: tickColor, size: 9 }, gridcolor: gridCol, backgroundcolor: "rgba(6,14,31,0.7)" },
+        xaxis: { title: { text: "Longitude (°E)", font: { color: axisColor, size: 10 } }, tickfont: { color: tickColor, size: 9 }, gridcolor: gridCol, showbackground: false, mirror: false, showspikes: false, spikesides: false },
+        yaxis: { title: { text: "Latitude (°N)", font: { color: axisColor, size: 10 } }, tickfont: { color: tickColor, size: 9 }, gridcolor: gridCol, showbackground: false, mirror: false, showspikes: false, spikesides: false },
+        zaxis: { title: { text: "D20 Depth (m)", font: { color: axisColor, size: 10 } }, autorange: "reversed", tickfont: { color: tickColor, size: 9 }, gridcolor: gridCol, showbackground: false, mirror: false, showspikes: false, spikesides: false },
         camera: {
           eye: { x: 1.3, y: -1.3, z: 0.8 },
           center: { x: 0, y: 0, z: 0 },
@@ -1879,6 +1889,7 @@ async function renderStudio3D() {
       margin: { l: 0, r: 0, b: 0, t: studioMode === "block" ? 0 : 25 },
       paper_bgcolor: bgColor,
       plot_bgcolor: bgColor,
+      hovermode: false,
       showlegend: studioMode === "curtains",
       legend: {
         x: 0.01,
@@ -1891,6 +1902,7 @@ async function renderStudio3D() {
       },
       scene: {
         bgcolor: bgColor,
+        hovermode: false,
         ...sceneConfig
       }
     };
@@ -1952,7 +1964,7 @@ async function renderEmbeddings() {
     const data = await res.json();
 
     const isDark = document.documentElement.getAttribute("data-theme") === "dark";
-    const axisFont = { color: isDark ? "#94a3b8" : "#64748b", size: 9 };
+    const axisFont = { color: isDark ? "#0c4a6e" : "#64748b", size: 9 };
     const paperBg  = "rgba(0,0,0,0)";
 
     // Helper: thin out embedding grid for performance (subsample every 3rd row/col)
@@ -1980,7 +1992,7 @@ async function renderEmbeddings() {
         type: "heatmap",
         colorscale: "Viridis",
         colorbar: { title: "Activation", titlefont: axisFont, tickfont: axisFont, thickness: 10, len: 0.9 }
-      }], { ...baseLayout, title: { text: "PC-1: Thermal Structure", font: { color: isDark ? "#cbd5e1" : "#334155", size: 10 } } }, cfg);
+      }], { ...baseLayout, title: { text: "PC-1: Thermal Structure", font: { color: isDark ? "#0c4a6e" : "#334155", size: 10 } } }, cfg);
     }
 
     if (data.embedding_channel_2) {
@@ -1991,7 +2003,7 @@ async function renderEmbeddings() {
         type: "heatmap",
         colorscale: "RdBu",
         colorbar: { title: "Activation", titlefont: axisFont, tickfont: axisFont, thickness: 10, len: 0.9 }
-      }], { ...baseLayout, title: { text: "PC-2: Dynamic Pattern", font: { color: isDark ? "#cbd5e1" : "#334155", size: 10 } } }, cfg);
+      }], { ...baseLayout, title: { text: "PC-2: Dynamic Pattern", font: { color: isDark ? "#0c4a6e" : "#334155", size: 10 } } }, cfg);
     }
   } catch (err) {
     console.error("Error rendering embeddings:", err);
@@ -2206,8 +2218,8 @@ let agroCharts = {};  // track Chart.js instances for destroy-on-reload
 
 async function loadAgroAnalytics() {
   const isDark = document.documentElement.getAttribute("data-theme") === "dark";
-  const textCol = isDark ? "#cbd5e1" : "#475569";
-  const gridCol = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)";
+  const textCol = isDark ? "#0c4a6e" : "#475569";
+  const gridCol = isDark ? "rgba(56, 189, 248, 0.2)" : "rgba(0,0,0,0.06)";
 
   // Get current selected date from dashboard dropdown
   const dateEl = document.getElementById("select-date");
