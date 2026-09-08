@@ -774,19 +774,39 @@
 
           <!-- Main GNN Workspace Flex -->
           <div class="gnn-workspace-flex">
-            <!-- Left: Interactive Graph Topology Canvas -->
+            <!-- Left: Interactive Real Satellite & Hydrodynamic Graph Map -->
             <div class="gnn-graph-wrapper">
               <div class="gnn-card-header">
-                <span class="gch-title"><i class="fa-solid fa-network-wired"></i> North Indian Ocean Hydrodynamic Graph Map</span>
-                <span class="gch-badge"><i class="fa-solid fa-hand-pointer"></i> Click Node to Inspect Profile</span>
+                <span class="gch-title"><i class="fa-solid fa-map-location-dot"></i> North Indian Ocean Real-Time Hydrodynamic Map</span>
+                <div class="gnn-header-badges">
+                  <span class="gch-badge live-pulse"><i class="fa-solid fa-bolt"></i> Real-Time Interactive</span>
+                  <span class="gch-badge"><i class="fa-solid fa-hand-pointer"></i> Click Any Node or Ocean Point</span>
+                </div>
               </div>
-              <div class="gnn-canvas-container" id="gnn-canvas-container">
-                <canvas id="gnn-graph-canvas"></canvas>
+              <div class="gnn-map-container" id="gnn-map-container">
+                <div id="gnn-real-map"></div>
+
+                <!-- Floating Map Tools -->
+                <div class="gnn-map-tools-overlay">
+                  <button class="btn-map-tool active" id="btn-gnn-tiles-sat" onclick="switchGnnTileLayer('sat')" title="Esri High-Resolution Satellite Imagery"><i class="fa-solid fa-satellite"></i> Satellite</button>
+                  <button class="btn-map-tool" id="btn-gnn-tiles-dark" onclick="switchGnnTileLayer('dark')" title="CartoDB Deep Ocean Dark Map"><i class="fa-solid fa-moon"></i> Dark Ocean</button>
+                  <button class="btn-map-tool" id="btn-gnn-toggle-flow" onclick="toggleGnnFlowAnimation()" title="Toggle Dynamic Ocean Current Flow Animations"><i class="fa-solid fa-water"></i> <span id="lbl-flow-state">Flow: ON</span></button>
+                  <button class="btn-map-tool" onclick="resetGnnMapView()" title="Reset to North Indian Ocean View"><i class="fa-solid fa-compress"></i> Reset View</button>
+                </div>
+
+                <!-- Live Interaction Banner -->
+                <div class="gnn-probe-status-banner" id="gnn-probe-banner">
+                  <i class="fa-solid fa-satellite-dish"></i>
+                  <span id="gnn-probe-banner-text"><strong>Real-Time Mode:</strong> Click any in-situ node to inspect its profile, or click <em>any point in the ocean</em> to trigger dynamic GNN message-passing inference.</span>
+                </div>
+
+                <!-- Map Legend Overlay -->
                 <div class="gnn-legend-overlay">
-                  <div class="glo-item"><span class="glo-dot dot-as"></span><span>Arabian Sea</span></div>
-                  <div class="glo-item"><span class="glo-dot dot-bob"></span><span>Bay of Bengal</span></div>
-                  <div class="glo-item"><span class="glo-dot dot-equ"></span><span>Equatorial NIO</span></div>
+                  <div class="glo-item"><span class="glo-dot dot-as"></span><span>Arabian Sea (5 Nodes)</span></div>
+                  <div class="glo-item"><span class="glo-dot dot-bob"></span><span>Bay of Bengal (5 Nodes)</span></div>
+                  <div class="glo-item"><span class="glo-dot dot-equ"></span><span>Equatorial NIO (2 Nodes)</span></div>
                   <div class="glo-item"><span class="glo-line"></span><span>Hydrodynamic Advection Edge</span></div>
+                  <div class="glo-item"><span class="glo-dot dot-custom"></span><span>Custom Real-Time Probe</span></div>
                 </div>
               </div>
             </div>
