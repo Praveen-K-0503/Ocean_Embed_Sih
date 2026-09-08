@@ -601,15 +601,6 @@
                 <option value="Cividis">Cividis</option>
               </select>
             </div>
-            <div class="studio-control-item">
-              <label><i class="fa-solid fa-display"></i> 3D Render Engine</label>
-              <select id="studio-render-engine" onchange="renderStudio3D()">
-                <option value="auto" selected>Universal Auto (WebGL / Software Canvas)</option>
-                <option value="isometric">Universal Isometric 3D Prism (Canvas 2D)</option>
-                <option value="curtains">Multi-Curtain Explorer (2D Depth Heatmaps)</option>
-                <option value="webgl">Hardware WebGL 3D (Plotly Surface)</option>
-              </select>
-            </div>
 
             <button class="btn-studio-render" onclick="renderStudio3D()"><i class="fa-solid fa-rotate"></i> Re-Render</button>
           </div>
@@ -680,13 +671,7 @@
                 <div class="template-subtitle" id="template-date-subtitle">North Indian Ocean | 2024-06-01</div>
               </div>
 
-              <!-- Active Render Engine Badge -->
-              <div class="studio-engine-badge" id="studio-engine-badge">
-                <span class="seb-dot"></span>
-                <span id="studio-engine-text">Universal 3D Engine Active</span>
-              </div>
-
-              <div class="compass-rose-overlay" id="studio-compass-rose" title="Interactive 3D Compass — Click N, S, E, W to rotate 3D view or center dial to reset">
+              <div class="compass-rose-overlay" title="Interactive 3D Compass — Click N, S, E, W to rotate 3D view or center dial to reset">
                 <div class="compass-rose">
                   <span class="c-point c-n" onclick="setCompassCamera('N')" title="Look from South to North">N</span>
                   <span class="c-point c-w" onclick="setCompassCamera('W')" title="Look from East to West">W</span>
@@ -695,18 +680,7 @@
                   <i class="fa-solid fa-compass compass-icon" id="compass-needle" onclick="setCompassCamera('RESET')" title="Reset 3D Camera View"></i>
                 </div>
               </div>
-
-              <!-- 1. Hardware WebGL Plotly Container -->
               <div id="plotly-3d-studio-container" style="width:100%; height:100%;"></div>
-
-              <!-- 2. Universal Software Isometric 3D Canvas (Zero WebGL Dependencies - 100% Reliable) -->
-              <canvas id="studio-isometric-canvas" style="display:none; width:100%; height:100%; cursor:grab;"></canvas>
-
-              <!-- 3. Multi-Curtain 2D Heatmap Explorer Container -->
-              <div id="studio-curtains-container" style="display:none; width:100%; height:100%; overflow-y:auto; padding:16px;"></div>
-
-              <!-- Hover Tooltip for Software Canvas -->
-              <div id="studio-iso-tooltip" class="studio-iso-tooltip" style="display:none;"></div>
             </div>
           </div>
 
@@ -800,39 +774,19 @@
 
           <!-- Main GNN Workspace Flex -->
           <div class="gnn-workspace-flex">
-            <!-- Left: Interactive Real Satellite & Hydrodynamic Graph Map -->
+            <!-- Left: Interactive Graph Topology Canvas -->
             <div class="gnn-graph-wrapper">
               <div class="gnn-card-header">
-                <span class="gch-title"><i class="fa-solid fa-map-location-dot"></i> North Indian Ocean Real-Time Hydrodynamic Map</span>
-                <div class="gnn-header-badges">
-                  <span class="gch-badge live-pulse"><i class="fa-solid fa-bolt"></i> Real-Time Interactive</span>
-                  <span class="gch-badge"><i class="fa-solid fa-hand-pointer"></i> Click Any Node or Ocean Point</span>
-                </div>
+                <span class="gch-title"><i class="fa-solid fa-network-wired"></i> North Indian Ocean Hydrodynamic Graph Map</span>
+                <span class="gch-badge"><i class="fa-solid fa-hand-pointer"></i> Click Node to Inspect Profile</span>
               </div>
-              <div class="gnn-map-container" id="gnn-map-container">
-                <div id="gnn-real-map"></div>
-
-                <!-- Floating Map Tools -->
-                <div class="gnn-map-tools-overlay">
-                  <button class="btn-map-tool active" id="btn-gnn-tiles-sat" onclick="switchGnnTileLayer('sat')" title="Esri High-Resolution Satellite Imagery"><i class="fa-solid fa-satellite"></i> Satellite</button>
-                  <button class="btn-map-tool" id="btn-gnn-tiles-dark" onclick="switchGnnTileLayer('dark')" title="CartoDB Deep Ocean Dark Map"><i class="fa-solid fa-moon"></i> Dark Ocean</button>
-                  <button class="btn-map-tool" id="btn-gnn-toggle-flow" onclick="toggleGnnFlowAnimation()" title="Toggle Dynamic Ocean Current Flow Animations"><i class="fa-solid fa-water"></i> <span id="lbl-flow-state">Flow: ON</span></button>
-                  <button class="btn-map-tool" onclick="resetGnnMapView()" title="Reset to North Indian Ocean View"><i class="fa-solid fa-compress"></i> Reset View</button>
-                </div>
-
-                <!-- Live Interaction Banner -->
-                <div class="gnn-probe-status-banner" id="gnn-probe-banner">
-                  <i class="fa-solid fa-satellite-dish"></i>
-                  <span id="gnn-probe-banner-text"><strong>Real-Time Mode:</strong> Click any in-situ node to inspect its profile, or click <em>any point in the ocean</em> to trigger dynamic GNN message-passing inference.</span>
-                </div>
-
-                <!-- Map Legend Overlay -->
+              <div class="gnn-canvas-container" id="gnn-canvas-container">
+                <canvas id="gnn-graph-canvas"></canvas>
                 <div class="gnn-legend-overlay">
-                  <div class="glo-item"><span class="glo-dot dot-as"></span><span>Arabian Sea (5 Nodes)</span></div>
-                  <div class="glo-item"><span class="glo-dot dot-bob"></span><span>Bay of Bengal (5 Nodes)</span></div>
-                  <div class="glo-item"><span class="glo-dot dot-equ"></span><span>Equatorial NIO (2 Nodes)</span></div>
+                  <div class="glo-item"><span class="glo-dot dot-as"></span><span>Arabian Sea</span></div>
+                  <div class="glo-item"><span class="glo-dot dot-bob"></span><span>Bay of Bengal</span></div>
+                  <div class="glo-item"><span class="glo-dot dot-equ"></span><span>Equatorial NIO</span></div>
                   <div class="glo-item"><span class="glo-line"></span><span>Hydrodynamic Advection Edge</span></div>
-                  <div class="glo-item"><span class="glo-dot dot-custom"></span><span>Custom Real-Time Probe</span></div>
                 </div>
               </div>
             </div>
