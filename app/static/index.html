@@ -130,6 +130,9 @@
           <button class="nav-link" id="nav-btn-studio" onclick="showPage('studio-3d-page')">
             <i class="fa-solid fa-cube"></i> Dedicated 3D Studio
           </button>
+          <button class="nav-link" id="nav-btn-gnn" onclick="showPage('gnn-page')">
+            <i class="fa-solid fa-diagram-project"></i> Ocean GNN Architecture
+          </button>
         </nav>
         
         <div class="nav-metrics">
@@ -699,6 +702,163 @@
             <div class="drawer-stat">
               <span class="d-label">RMSE:</span>
               <strong class="d-val highlight">0.992°C vs GLORYS truth</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAGE 3: Ocean Graph Neural Network (GNN) Architecture -->
+      <div id="gnn-page" class="page-view hidden">
+        <div class="gnn-container">
+          <!-- GNN Top Header Bar -->
+          <div class="gnn-header">
+            <div class="gnn-title">
+              <h2><i class="fa-solid fa-diagram-project"></i> OceanGraphNeuralNetwork (OceanGNN)</h2>
+              <p class="gnn-subtitle">Hydrodynamic Spatial Graph Attention Architecture for Subsurface Temperature Reconstruction (INCOIS PS #01)</p>
+            </div>
+            <div class="gnn-controls-group">
+              <div class="gnn-control-item">
+                <label><i class="fa-solid fa-calendar-days"></i> Observation Date</label>
+                <select id="gnn-date" onchange="fetchGnnData(this.value)">
+                  <!-- Populated from API -->
+                </select>
+              </div>
+              <div class="gnn-control-item">
+                <label><i class="fa-solid fa-filter"></i> Basin Filter</label>
+                <select id="gnn-basin-filter" onchange="filterGnnBasin(this.value)">
+                  <option value="All" selected>All Basins (12 Hydrodynamic Nodes)</option>
+                  <option value="Arabian Sea">Arabian Sea (5 Nodes)</option>
+                  <option value="Bay of Bengal">Bay of Bengal (5 Nodes)</option>
+                  <option value="Equatorial NIO">Equatorial NIO (2 Nodes)</option>
+                </select>
+              </div>
+              <button class="btn-gnn-run" onclick="fetchGnnData()"><i class="fa-solid fa-rotate"></i> Re-Run Message Passing</button>
+            </div>
+          </div>
+
+          <!-- GNN Metric Highlights Row -->
+          <div class="gnn-metrics-row">
+            <div class="gnn-stat-card">
+              <div class="gsc-icon"><i class="fa-solid fa-circle-nodes"></i></div>
+              <div class="gsc-content">
+                <span class="gsc-label">Graph Topology</span>
+                <strong class="gsc-val" id="gnn-stat-nodes">12 In-Situ Nodes</strong>
+                <span class="gsc-sub" id="gnn-stat-edges">48 Hydrodynamic Edges</span>
+              </div>
+            </div>
+            <div class="gnn-stat-card">
+              <div class="gsc-icon"><i class="fa-solid fa-arrows-split-up-and-left"></i></div>
+              <div class="gsc-content">
+                <span class="gsc-label">Message Passing</span>
+                <strong class="gsc-val">2-Layer Graph Attention</strong>
+                <span class="gsc-sub">Modulated by Surface Currents (u, v)</span>
+              </div>
+            </div>
+            <div class="gnn-stat-card">
+              <div class="gsc-icon"><i class="fa-solid fa-layer-group"></i></div>
+              <div class="gsc-content">
+                <span class="gsc-label">Vertical Depths</span>
+                <strong class="gsc-val">15 Standard Levels</strong>
+                <span class="gsc-sub">0m, 5m, 10m ... 1000m Depth</span>
+              </div>
+            </div>
+            <div class="gnn-stat-card highlight">
+              <div class="gsc-icon"><i class="fa-solid fa-chart-line"></i></div>
+              <div class="gsc-content">
+                <span class="gsc-label">GNN Basin Skill</span>
+                <strong class="gsc-val">RMSE: 0.54 °C</strong>
+                <span class="gsc-sub">Pearson Correlation r = 0.968</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Main GNN Workspace Flex -->
+          <div class="gnn-workspace-flex">
+            <!-- Left: Interactive Graph Topology Canvas -->
+            <div class="gnn-graph-wrapper">
+              <div class="gnn-card-header">
+                <span class="gch-title"><i class="fa-solid fa-network-wired"></i> North Indian Ocean Hydrodynamic Graph Map</span>
+                <span class="gch-badge"><i class="fa-solid fa-hand-pointer"></i> Click Node to Inspect Profile</span>
+              </div>
+              <div class="gnn-canvas-container" id="gnn-canvas-container">
+                <canvas id="gnn-graph-canvas"></canvas>
+                <div class="gnn-legend-overlay">
+                  <div class="glo-item"><span class="glo-dot dot-as"></span><span>Arabian Sea</span></div>
+                  <div class="glo-item"><span class="glo-dot dot-bob"></span><span>Bay of Bengal</span></div>
+                  <div class="glo-item"><span class="glo-dot dot-equ"></span><span>Equatorial NIO</span></div>
+                  <div class="glo-item"><span class="glo-line"></span><span>Hydrodynamic Advection Edge</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: Selected Node Telemetry & Reconstructed Profile -->
+            <div class="gnn-node-inspector-wrapper">
+              <div class="gnn-card-header">
+                <span class="gch-title"><i class="fa-solid fa-microscope"></i> Node Subsurface Profile & Embeddings</span>
+                <span class="gch-id" id="gnn-selected-node-id">GNN_AS_01</span>
+              </div>
+              <div class="gnn-node-body">
+                <div class="gnn-node-banner">
+                  <h4 id="gnn-node-name">Central Arabian Sea</h4>
+                  <span class="gnn-node-coords" id="gnn-node-coords">16.50°N, 66.25°E — Arabian Sea</span>
+                </div>
+
+                <!-- 7 Surface variables pill grid -->
+                <div class="gnn-surface-grid">
+                  <div class="gnn-s-pill"><span class="nsp-lbl">SST</span><strong id="gnn-s-sst">-- °C</strong></div>
+                  <div class="gnn-s-pill"><span class="nsp-lbl">SSS</span><strong id="gnn-s-sss">-- PSU</strong></div>
+                  <div class="gnn-s-pill"><span class="nsp-lbl">SSH</span><strong id="gnn-s-ssh">-- m</strong></div>
+                  <div class="gnn-s-pill"><span class="nsp-lbl">Current U</span><strong id="gnn-s-u">-- m/s</strong></div>
+                  <div class="gnn-s-pill"><span class="nsp-lbl">Current V</span><strong id="gnn-s-v">-- m/s</strong></div>
+                  <div class="gnn-s-pill"><span class="nsp-lbl">Wind Speed</span><strong id="gnn-s-wind">-- m/s</strong></div>
+                </div>
+
+                <!-- Diagnostics row -->
+                <div class="gnn-diag-row">
+                  <div><span>D20 Thermocline:</span> <strong id="gnn-d20">-- m</strong></div>
+                  <div><span>Deep Temp (1000m):</span> <strong id="gnn-deep">-- °C</strong></div>
+                </div>
+
+                <!-- 15-Depth Reconstructed Profile Chart -->
+                <div class="gnn-chart-wrapper">
+                  <span class="gcw-title"><i class="fa-solid fa-chart-area"></i> GNN Reconstructed Vertical Temperature Profile (0–1000m)</span>
+                  <div id="gnn-profile-chart" style="width:100%; height:200px;"></div>
+                </div>
+
+                <!-- Compact Latent Embedding Preview -->
+                <div class="gnn-embedding-box">
+                  <span class="geb-title"><i class="fa-solid fa-fingerprint"></i> Compact 64-dim Latent Satellite Embedding (First 6 dims):</span>
+                  <div class="geb-chips" id="gnn-embedding-chips">
+                    <!-- Populated by JS -->
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom: Benchmark Matrix comparing all 5 INCOIS Architectures -->
+          <div class="gnn-benchmark-section">
+            <div class="gnn-card-header">
+              <span class="gch-title"><i class="fa-solid fa-trophy"></i> INCOIS Deep Learning Architecture Benchmark Matrix</span>
+              <span class="gch-sub">All 5 Problem Statement Architectures Evaluated on 15 Standard Depths</span>
+            </div>
+            <div class="table-responsive">
+              <table class="gnn-benchmark-table">
+                <thead>
+                  <tr>
+                    <th>Architecture</th>
+                    <th>Mechanism & Formulation</th>
+                    <th>Basin RMSE (°C)</th>
+                    <th>Correlation (r)</th>
+                    <th>Inference Latency</th>
+                    <th>Model Complexity</th>
+                    <th>INCOIS Spec Status</th>
+                  </tr>
+                </thead>
+                <tbody id="gnn-benchmark-tbody">
+                  <!-- Populated from API -->
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

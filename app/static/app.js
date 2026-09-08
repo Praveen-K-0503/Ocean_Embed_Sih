@@ -233,6 +233,14 @@ function showPage(pageId) {
     if (inLon) document.getElementById("studio-lon").value = inLon;
 
     renderStudio3D();
+  } else if (pageId === "gnn-page") {
+    document.getElementById("nav-btn-gnn").classList.add("active");
+    const dashDate = document.getElementById("select-date")?.value;
+    const gnnDate = document.getElementById("gnn-date");
+    if (dashDate && gnnDate && (!gnnDate.value || gnnDate.value !== dashDate)) {
+      gnnDate.value = dashDate;
+    }
+    fetchGnnData();
   }
 }
 
@@ -696,6 +704,19 @@ async function loadDates(resetToDefault = false) {
         studioSelect.appendChild(opt);
       });
       studioSelect.value = selectedDate;
+    }
+
+    // Populate GNN date dropdown
+    const gnnSelect = document.getElementById("gnn-date");
+    if (gnnSelect) {
+      gnnSelect.innerHTML = "";
+      data.dates.forEach(d => {
+        const opt = document.createElement("option");
+        opt.value = d;
+        opt.textContent = d;
+        gnnSelect.appendChild(opt);
+      });
+      gnnSelect.value = selectedDate;
     }
 
     const inLat = parseFloat(document.getElementById("input-lat")?.value) || 15.0;
@@ -2530,5 +2551,348 @@ async function loadAgroAnalytics() {
     const tab = document.getElementById("agro-tab");
     if (tab) tab.querySelector(".agro-charts-grid").innerHTML = `<div style="padding:20px; color:#ef4444;">Error loading Agro Analytics: ${err.message}</div>`;
   }
+}
+
+/* ============================================================
+   Ocean Graph Neural Network (OceanGNN) Interactive Client Module
+   ============================================================ */
+let currentGnnData = null;
+let selectedGnnNodeId = "GNN_AS_01";
+let currentGnnBasinFilter = "All";
+let gnnCanvasInitialized = false;
+
+async function fetchGnnData(date) {
+  const reqDate = date || document.getElementById("gnn-date")?.value || document.getElementById("select-date")?.value || "2024-06-01";
+  const gnnDateEl = document.getElementById("gnn-date");
+  if (gnnDateEl && gnnDateEl.value !== reqDate) gnnDateEl.value = reqDate;
+
+  try {
+    const res = await fetch(`/api/gnn_inference?date=${reqDate}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (data.status !== "success") throw new Error(data.message || "GNN inference error");
+
+    currentGnnData = data;
+
+    // 1. Update Stat cards
+    const statNodes = document.getElementById("gnn-stat-nodes");
+    const statEdges = document.getElementById("gnn-stat-edges");
+    if (statNodes) statNodes.textContent = `${data.num_nodes} In-Situ Nodes`;
+    if (statEdges) statEdges.textContent = `${data.num_edges} Hydrodynamic Edges`;
+
+    // 2. Draw interactive graph on canvas
+    drawGnnGraph();
+
+    // 3. Select current or default node
+    if (!currentGnnData.nodes.some(n => n.id === selectedGnnNodeId)) {
+      selectedGnnNodeId = currentGnnData.nodes[0]?.id || "GNN_AS_01";
+    }
+    selectGnnNode(selectedGnnNodeId);
+
+    // 4. Populate Benchmark Matrix
+    populateGnnBenchmarkTable(data.benchmark);
+
+  } catch (err) {
+    console.error("GNN Fetch Error:", err);
+  }
+}
+
+function filterGnnBasin(basin) {
+  currentGnnBasinFilter = basin;
+  drawGnnGraph();
+}
+
+function drawGnnGraph() {
+  const canvas = document.getElementById("gnn-graph-canvas");
+  if (!canvas || !currentGnnData) return;
+
+  const container = document.getElementById("gnn-canvas-container");
+  if (container) {
+    canvas.width = container.clientWidth || 600;
+    canvas.height = container.clientHeight || 480;
+  }
+
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width;
+  const H = canvas.height;
+  const pad = 40;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Background subtle grid lines
+  ctx.strokeStyle = "rgba(56, 189, 248, 0.08)";
+  ctx.lineWidth = 1;
+  for (let lon = 50; lon <= 100; lon += 10) {
+    const x = pad + ((lon - 45.0) / 60.0) * (W - 2 * pad);
+    ctx.beginPath();
+    ctx.moveTo(x, pad);
+    ctx.lineTo(x, H - pad);
+    ctx.stroke();
+    ctx.fillStyle = "rgba(148, 163, 184, 0.4)";
+    ctx.font = "9px 'Plus Jakarta Sans', sans-serif";
+    ctx.fillText(`${lon}°E`, x - 10, H - pad + 15);
+  }
+  for (let lat = 10; lat <= 25; lat += 5) {
+    const y = H - pad - ((lat - 5.0) / 25.0) * (H - 2 * pad);
+    ctx.beginPath();
+    ctx.moveTo(pad, y);
+    ctx.lineTo(W - pad, y);
+    ctx.stroke();
+    ctx.fillStyle = "rgba(148, 163, 184, 0.4)";
+    ctx.font = "9px 'Plus Jakarta Sans', sans-serif";
+    ctx.fillText(`${lat}°N`, pad - 30, y + 3);
+  }
+
+  // Draw Peninsular India Coastline Contour outline in soft cyan
+  ctx.strokeStyle = "rgba(56, 189, 248, 0.35)";
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  const indiaPoints = [
+    [24.0, 68.0], [22.5, 69.5], [21.0, 72.5], [19.0, 72.8],
+    [15.5, 73.8], [12.0, 75.0], [8.0, 77.5], [8.5, 78.2],
+    [10.5, 79.8], [13.0, 80.3], [16.0, 81.5], [17.5, 83.3],
+    [20.0, 86.5], [21.5, 87.5], [22.0, 89.0]
+  ];
+  indiaPoints.forEach(([lat, lon], idx) => {
+    const px = pad + ((lon - 45.0) / 60.0) * (W - 2 * pad);
+    const py = H - pad - ((lat - 5.0) / 25.0) * (H - 2 * pad);
+    if (idx === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  });
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Filter nodes based on selected basin
+  const visibleNodes = currentGnnData.nodes.filter(n => {
+    if (currentGnnBasinFilter === "All") return true;
+    return n.basin === currentGnnBasinFilter;
+  });
+  const visibleIds = new Set(visibleNodes.map(n => n.id));
+
+  // Map node coordinates to pixel space
+  const nodeCoords = {};
+  currentGnnData.nodes.forEach(n => {
+    const x = pad + ((n.lon - 45.0) / 60.0) * (W - 2 * pad);
+    const y = H - pad - ((n.lat - 5.0) / 25.0) * (H - 2 * pad);
+    nodeCoords[n.id] = { x, y };
+  });
+
+  // Draw Hydrodynamic Edges
+  currentGnnData.edges.forEach(e => {
+    if (!visibleIds.has(e.source) || !visibleIds.has(e.target)) return;
+    const p1 = nodeCoords[e.source];
+    const p2 = nodeCoords[e.target];
+    if (!p1 || !p2) return;
+
+    ctx.strokeStyle = `rgba(56, 189, 248, ${Math.min(0.8, e.weight * 0.7)})`;
+    ctx.lineWidth = Math.max(1, e.weight * 2.2);
+
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.stroke();
+
+    // Directional current arrow indicator
+    const midX = (p1.x + p2.x) / 2;
+    const midY = (p1.y + p2.y) / 2;
+    ctx.fillStyle = "rgba(56, 189, 248, 0.85)";
+    ctx.beginPath();
+    ctx.arc(midX, midY, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // Draw Nodes
+  visibleNodes.forEach(n => {
+    const { x, y } = nodeCoords[n.id];
+    const isSelected = (n.id === selectedGnnNodeId);
+
+    // Basin color
+    let baseCol = "#38bdf8"; // Arabian Sea
+    if (n.basin === "Bay of Bengal") baseCol = "#34d399";
+    else if (n.basin === "Equatorial NIO") baseCol = "#f59e0b";
+
+    // Selected outer glowing ring
+    if (isSelected) {
+      ctx.strokeStyle = baseCol;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(x, y, 16, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = "rgba(56, 189, 248, 0.25)";
+      ctx.beginPath();
+      ctx.arc(x, y, 16, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Node core
+    ctx.fillStyle = isSelected ? "#ffffff" : baseCol;
+    ctx.beginPath();
+    ctx.arc(x, y, isSelected ? 9 : 7, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = "#040a16";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Node text label
+    ctx.fillStyle = isSelected ? "#ffffff" : "#cbd5e1";
+    ctx.font = isSelected ? "bold 11px 'Plus Jakarta Sans', sans-serif" : "10px 'Plus Jakarta Sans', sans-serif";
+    ctx.fillText(n.name.split(" ")[0] + (n.name.includes("Bay") ? " BoB" : ""), x + 12, y + 4);
+  });
+
+  // Attach click listener once
+  if (!gnnCanvasInitialized) {
+    canvas.addEventListener("click", (evt) => {
+      const rect = canvas.getBoundingClientRect();
+      const clickX = evt.clientX - rect.left;
+      const clickY = evt.clientY - rect.top;
+
+      let closest = null;
+      let minD = 24;
+
+      currentGnnData.nodes.forEach(n => {
+        const pt = nodeCoords[n.id];
+        if (!pt) return;
+        const d = Math.sqrt((clickX - pt.x)**2 + (clickY - pt.y)**2);
+        if (d < minD) {
+          minD = d;
+          closest = n.id;
+        }
+      });
+
+      if (closest) {
+        selectGnnNode(closest);
+      }
+    });
+
+    window.addEventListener("resize", () => {
+      if (document.getElementById("gnn-page") && !document.getElementById("gnn-page").classList.contains("hidden")) {
+        drawGnnGraph();
+      }
+    });
+
+    gnnCanvasInitialized = true;
+  }
+}
+
+function selectGnnNode(nodeId) {
+  selectedGnnNodeId = nodeId;
+  if (!currentGnnData || !currentGnnData.nodes) return;
+
+  const node = currentGnnData.nodes.find(n => n.id === nodeId);
+  if (!node) return;
+
+  // 1. Update text banners
+  const elId = document.getElementById("gnn-selected-node-id");
+  const elName = document.getElementById("gnn-node-name");
+  const elCoords = document.getElementById("gnn-node-coords");
+  if (elId) elId.textContent = node.id;
+  if (elName) elName.textContent = node.name;
+  if (elCoords) elCoords.textContent = `${node.lat.toFixed(2)}°N, ${node.lon.toFixed(2)}°E — ${node.basin}`;
+
+  // 2. Update 7 surface variables pills
+  const s = node.surface_variables || {};
+  const setEl = (id, txt) => { const e = document.getElementById(id); if (e) e.textContent = txt; };
+  setEl("gnn-s-sst", `${s.sst_c ?? "--"} °C`);
+  setEl("gnn-s-sss", `${s.sss_psu ?? "--"} PSU`);
+  setEl("gnn-s-ssh", `${s.ssh_m ?? "--"} m`);
+  setEl("gnn-s-u", `${s.u_curr ?? "--"} m/s`);
+  setEl("gnn-s-v", `${s.v_curr ?? "--"} m/s`);
+  const windMag = (s.wind_u && s.wind_v) ? Math.sqrt(s.wind_u**2 + s.wind_v**2).toFixed(1) : "--";
+  setEl("gnn-s-wind", `${windMag} m/s`);
+
+  // 3. Diagnostics
+  setEl("gnn-d20", `~${node.d20_m ?? "--"} m`);
+  setEl("gnn-deep", `${node.deep_temp_1000m ?? "--"} °C`);
+
+  // 4. Latent Embedding chips
+  const chipsContainer = document.getElementById("gnn-embedding-chips");
+  if (chipsContainer && node.embedding_sample) {
+    chipsContainer.innerHTML = node.embedding_sample.map((val, idx) => 
+      `<span class="geb-chip">z[${idx}]=${val > 0 ? "+" : ""}${val}</span>`
+    ).join("");
+  }
+
+  // 5. Plotly Reconstructed 15-Depth Profile Chart
+  const chartContainer = document.getElementById("gnn-profile-chart");
+  if (chartContainer && window.Plotly && node.profile) {
+    const depths = node.profile.map(p => p.depth_m);
+    const temps = node.profile.map(p => p.temperature_c);
+    const truths = node.profile.map(p => p.truth_temperature_c);
+
+    const traces = [
+      {
+        x: temps,
+        y: depths,
+        mode: "lines+markers",
+        name: "OceanGNN Reconstruction",
+        line: { color: "#38bdf8", width: 2.5, shape: "spline" },
+        marker: { size: 5, color: "#38bdf8" },
+        hovertemplate: "Depth: %{y}m<br>GNN: %{x:.2f}°C<extra></extra>"
+      }
+    ];
+
+    if (truths && truths.some(t => t !== null && t !== undefined)) {
+      traces.push({
+        x: truths,
+        y: depths,
+        mode: "lines+markers",
+        name: "GLORYS Truth",
+        line: { color: "#f59e0b", width: 2, dash: "dash", shape: "spline" },
+        marker: { size: 4, color: "#f59e0b" },
+        hovertemplate: "Depth: %{y}m<br>Truth: %{x:.2f}°C<extra></extra>"
+      });
+    }
+
+    const layout = {
+      margin: { l: 45, r: 15, t: 10, b: 35 },
+      paper_bgcolor: "transparent",
+      plot_bgcolor: "transparent",
+      showlegend: true,
+      legend: {
+        x: 0.55,
+        y: 0.05,
+        font: { color: "#cbd5e1", size: 9 },
+        bgcolor: "rgba(6, 14, 31, 0.7)"
+      },
+      yaxis: {
+        autorange: "reversed",
+        title: { text: "Depth (m)", font: { color: "#94a3b8", size: 10 } },
+        tickfont: { color: "#cbd5e1", size: 9 },
+        gridcolor: "rgba(56, 189, 248, 0.12)"
+      },
+      xaxis: {
+        title: { text: "Temperature (°C)", font: { color: "#94a3b8", size: 10 } },
+        tickfont: { color: "#cbd5e1", size: 9 },
+        gridcolor: "rgba(56, 189, 248, 0.12)"
+      }
+    };
+
+    Plotly.newPlot("gnn-profile-chart", traces, layout, { responsive: true, displayModeBar: false });
+  }
+
+  // 6. Redraw graph to highlight selected node
+  drawGnnGraph();
+}
+
+function populateGnnBenchmarkTable(benchmarkList) {
+  const tbody = document.getElementById("gnn-benchmark-tbody");
+  if (!tbody || !benchmarkList) return;
+
+  tbody.innerHTML = benchmarkList.map(b => {
+    const isGnn = b.model.includes("OceanGNN");
+    const badgeClass = isGnn ? "badge-status active" : "badge-status implemented";
+    return `<tr class="${isGnn ? 'active-row' : ''}">
+      <td><strong>${b.model}</strong></td>
+      <td>${b.type}</td>
+      <td style="color:#34d399; font-weight:700; font-family:var(--font-mono);">${b.rmse.toFixed(2)} °C</td>
+      <td style="color:#38bdf8; font-weight:700; font-family:var(--font-mono);">${b.correlation.toFixed(3)}</td>
+      <td style="font-family:var(--font-mono);">${b.latency_ms} ms</td>
+      <td style="font-family:var(--font-mono);">${b.params}</td>
+      <td><span class="${badgeClass}">${b.status}</span></td>
+    </tr>`;
+  }).join("");
 }
 
