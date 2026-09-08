@@ -532,6 +532,19 @@
             <div class="studio-title">
               <h2><i class="fa-solid fa-cube"></i> 3D Volumetric Studio</h2>
             </div>
+            <div class="studio-header-actions">
+              <div class="studio-view-toggle-group">
+                <button class="btn-studio-view active" id="btn-view-dual" onclick="setStudioViewMode('dual')" title="Integrated View: Original Leaflet Map + 3D Volumetric Studio">
+                  <i class="fa-solid fa-table-columns"></i> Dual: Leaflet Map + 3D Studio
+                </button>
+                <button class="btn-studio-view" id="btn-view-3d" onclick="setStudioViewMode('3d')" title="3D Volumetric Reconstruction Only">
+                  <i class="fa-solid fa-cube"></i> 3D Reconstruction Only
+                </button>
+                <button class="btn-studio-view" id="btn-view-map" onclick="setStudioViewMode('map')" title="Original Leaflet Satellite Map Only">
+                  <i class="fa-solid fa-map-location-dot"></i> Original Leaflet Map Only
+                </button>
+              </div>
+            </div>
           </div>
 
           <!-- Studio Controls Row -->
@@ -604,8 +617,8 @@
             <button class="btn-studio-chip" onclick="jumpStudioRegion(13.5, 95.5, 'Andaman Sea')">Andaman Sea (13.5°N, 95.5°E)</button>
           </div>
 
-          <!-- Studio Body: left stats + right 3D canvas -->
-          <div class="studio-body-flex">
+          <!-- Studio Body: left stats + center Leaflet map + right 3D canvas -->
+          <div class="studio-body-flex view-dual" id="studio-body-flex">
             <!-- Left: Key metrics & Problem Statement Specifications -->
             <div class="studio-stats-sidebar">
               <div class="studio-stat-block">
@@ -653,8 +666,17 @@
               </div>
             </div>
 
-            <!-- Right: Fullscreen Interactive 3D Plotly Volumetric Canvas -->
-            <div class="studio-canvas-wrapper">
+            <!-- Integrated Original Leaflet Satellite Observation Map -->
+            <div class="studio-map-wrapper" id="studio-map-wrapper">
+              <div class="studio-map-header">
+                <span class="smh-title"><i class="fa-solid fa-satellite"></i> Original Leaflet Satellite Map</span>
+                <span class="smh-badge"><i class="fa-solid fa-crosshairs"></i> Drag Marker / Click to Reconstruct 3D</span>
+              </div>
+              <div id="studio-ocean-map" style="width:100%; height:calc(100% - 38px);"></div>
+            </div>
+
+            <!-- Fullscreen Interactive 3D Plotly Volumetric Canvas -->
+            <div class="studio-canvas-wrapper" id="studio-canvas-wrapper">
               <!-- Design Template Matching Header -->
               <div class="studio-template-header">
                 <div class="template-title">3D Reconstruction of Ocean Temperature</div>

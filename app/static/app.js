@@ -1,4 +1,6 @@
 let map, marker, argoMarkers = [];
+let studioMap = null, studioMarker = null, isStudioMapInitialized = false;
+let studioViewMode = "dual";
 let profileChart = null;
 let currentPrediction = null;
 let isMapInitialized = false;
@@ -229,6 +231,13 @@ function showPage(pageId) {
     const inLon = document.getElementById("input-lon")?.value;
     if (inLat) document.getElementById("studio-lat").value = inLat;
     if (inLon) document.getElementById("studio-lon").value = inLon;
+
+    // Initialize or refresh Studio Leaflet map
+    if (!isStudioMapInitialized) {
+      setTimeout(() => { initStudioMap(); }, 150);
+    } else if (studioMap) {
+      setTimeout(() => { studioMap.invalidateSize(); }, 200);
+    }
     renderStudio3D();
   }
 }
@@ -362,7 +371,133 @@ function initMap() {
   });
 
   setTimeout(() => { map.invalidateSize(); }, 300);
+  isMapInitialized = true;
 }
+
+/* ============================================================
+   Integrated Original Leaflet Satellite Map in 3D Volumetric Studio
+   ============================================================ */
+function initStudioMap() {
+  const container = document.getElementById("studio-ocean-map");
+  if (!container || isStudioMapInitialized) return;
+
+  const initLat = parseFloat(document.getElementById("studio-lat")?.value ?? "15.0");
+  const initLon = parseFloat(document.getElementById("studio-lon")?.value ?? "65.0");
+
+  studioMap = L.map("studio-ocean-map", {
+    center: [initLat, initLon],
+    zoom: 4,
+    zoomControl: true,
+  });
+
+  L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+    attribution: "&copy; Esri, Maxar & OceanEmbed",
+    maxZoom: 10,
+    minZoom: 3,
+  }).addTo(studioMap);
+
+  const bounds = [[5.0, 45.0], [30.0, 105.0]];
+  L.rectangle(bounds, {
+    color: "#38bdf8",
+    weight: 2,
+    dashArray: "6, 6",
+    fillColor: "#38bdf8",
+    fillOpacity: 0.08
+  }).addTo(studioMap);
+
+  studioMarker = L.marker([initLat, initLon], { draggable: true }).addTo(studioMap);
+  studioMarker.bindPopup(`<b>3D Reconstruction Center</b><br>Lat: ${initLat.toFixed(2)}°N, Lon: ${initLon.toFixed(2)}°E`).openPopup();
+
+  studioMarker.on("dragend", (e) => {
+    const pos = e.target.getLatLng();
+    updateStudioCoordsFromMap(pos.lat, pos.lng);
+  });
+
+  studioMap.on("click", (e) => {
+    updateStudioCoordsFromMap(e.latlng.lat, e.latlng.lng);
+  });
+
+  // Plot ARGO floats on studio map
+  const argoFloats = [
+    { id: "ARGO_INCOIS_001", lat: 16.5, lon: 66.25, name: "Central Arabian Sea", sst: 28.2, d20: 82, d1000: 5.8 },
+    { id: "ARGO_INCOIS_002", lat: 14.5, lon: 63.50, name: "Western Arabian Sea", sst: 27.8, d20: 78, d1000: 5.5 },
+    { id: "ARGO_INCOIS_003", lat: 17.5, lon: 67.50, name: "Eastern Arabian Sea", sst: 29.1, d20: 89, d1000: 6.0 },
+    { id: "ARGO_INCOIS_004", lat: 14.25, lon: 92.75, name: "Andaman Sea / BoB", sst: 29.4, d20: 98, d1000: 6.2 },
+    { id: "ARGO_INCOIS_005", lat: 15.0, lon: 90.25, name: "Central Bay of Bengal", sst: 28.9, d20: 91, d1000: 6.1 },
+    { id: "ARGO_INCOIS_006", lat: 12.25, lon: 90.50, name: "Southern Bay of Bengal", sst: 29.7, d20: 95, d1000: 6.1 }
+  ];
+
+  argoFloats.forEach(f => {
+    const argoIcon = L.divIcon({
+      className: "argo-marker-wrapper",
+      html: `<div class="argo-circular-blue-dot" title="INCOIS ARGO Float: ${f.id}">
+               <div class="argo-dot-pulse"></div>
+               <div class="argo-dot-core"></div>
+             </div>`,
+      iconSize: [22, 22],
+      iconAnchor: [11, 11],
+      popupAnchor: [0, -12]
+    });
+
+    const fm = L.marker([f.lat, f.lon], { icon: argoIcon }).addTo(studioMap);
+    fm.bindTooltip(`<b>${f.id}</b> — ${f.name}<br>Surface: ${f.sst.toFixed(1)}°C (Click to probe 3D)`, { direction: "top", offset: [0, -8] });
+    fm.on("click", () => {
+      updateStudioCoordsFromMap(f.lat, f.lon);
+    });
+  });
+
+  isStudioMapInitialized = true;
+}
+
+function updateStudioCoordsFromMap(lat, lon) {
+  const clampLat = Math.max(5.0, Math.min(30.0, parseFloat(lat.toFixed(2))));
+  const clampLon = Math.max(45.0, Math.min(105.0, parseFloat(lon.toFixed(2))));
+
+  const latInput = document.getElementById("studio-lat");
+  const lonInput = document.getElementById("studio-lon");
+  const latRange = document.getElementById("studio-lat-range");
+  const lonRange = document.getElementById("studio-lon-range");
+  const latBadge = document.getElementById("studio-lat-badge");
+  const lonBadge = document.getElementById("studio-lon-badge");
+
+  if (latInput) latInput.value = clampLat;
+  if (lonInput) lonInput.value = clampLon;
+  if (latRange) latRange.value = clampLat;
+  if (lonRange) lonRange.value = clampLon;
+  if (latBadge) latBadge.textContent = `${clampLat.toFixed(2)}°N`;
+  if (lonBadge) lonBadge.textContent = `${clampLon.toFixed(2)}°E`;
+
+  if (studioMarker) {
+    studioMarker.setLatLng([clampLat, clampLon]);
+    studioMarker.setPopupContent(`<b>3D Reconstruction Center</b><br>Lat: ${clampLat.toFixed(2)}°N, Lon: ${clampLon.toFixed(2)}°E`);
+  }
+
+  renderStudio3D();
+}
+
+function setStudioViewMode(mode) {
+  studioViewMode = mode;
+  document.querySelectorAll(".btn-studio-view").forEach(btn => btn.classList.remove("active"));
+  const btnActive = document.getElementById(`btn-view-${mode}`);
+  if (btnActive) btnActive.classList.add("active");
+
+  const bodyFlex = document.getElementById("studio-body-flex");
+  if (bodyFlex) {
+    bodyFlex.classList.remove("view-dual", "view-3d", "view-map");
+    bodyFlex.classList.add(`view-${mode}`);
+  }
+
+  // Trigger relayout for Plotly and invalidate size for Leaflet
+  setTimeout(() => {
+    if (studioMap) studioMap.invalidateSize();
+    const plotContainer = document.getElementById("plotly-3d-studio-container");
+    if (plotContainer && window.Plotly) {
+      Plotly.Plots.resize(plotContainer);
+    }
+  }, 120);
+}
+
+
 
 function setCoordinates(lat, lon) {
   document.getElementById("input-lat").value = lat.toFixed(2);
@@ -1331,6 +1466,14 @@ function jumpStudioRegion(lat, lon, name) {
   if (inLat) inLat.value = lat.toFixed(2);
   if (inLon) inLon.value = lon.toFixed(2);
 
+  if (studioMarker) {
+    studioMarker.setLatLng([lat, lon]);
+    studioMarker.setPopupContent(`<b>${name || "Basin Target"}</b><br>Lat: ${lat.toFixed(2)}°N, Lon: ${lon.toFixed(2)}°E`);
+  }
+  if (studioMap) {
+    studioMap.setView([lat, lon], 5);
+  }
+
   document.querySelectorAll(".btn-studio-chip").forEach(c => c.classList.remove("active"));
   if (typeof event !== "undefined" && event && event.target) {
     event.target.classList.add("active");
@@ -1468,24 +1611,6 @@ async function renderStudio3D() {
     }
 
     const activePalette = buildActiveColorscale(colorscale);
-
-    // 2. Build composite colorscale for top surface (merges active ocean palette with realistic land terrain)
-    function buildCompositeColorscale(baseScale) {
-      const comp = [];
-      for (const [normVal, hexCol] of baseScale) {
-        comp.push([normVal * 0.75, hexCol]);
-      }
-      comp.push([0.775, "#0e3b20"]); // Coastal Mangrove Deep Green
-      comp.push([0.810, "#195c2b"]); // Peninsular India Dense Forest
-      comp.push([0.850, "#2d7a46"]); // Western Ghats Emerald
-      comp.push([0.890, "#9c7a4b"]); // Deccan Plateau Earth Savanna
-      comp.push([0.925, "#d49b4d"]); // Thar Desert Sand & Arabian Dunes
-      comp.push([0.960, "#664229"]); // Mountain Rock Ridges
-      comp.push([1.000, "#ffffff"]); // Himalayan Peak Snow White
-      return comp;
-    }
-
-    const compositeColorscale = buildCompositeColorscale(activePalette);
 
     // Solid matte lighting eliminating milky glaze or washed-out translucency
     const solidLighting = {
@@ -1660,15 +1785,17 @@ async function renderStudio3D() {
       const surfY = subLats.map(latVal => subLons.map(() => latVal));
       const surfZ = subLats.map(() => subLons.map(() => 0));
 
+      // Top Face: Continuous Ocean Sea Surface Temperature (SST) matching volume thermal colormap
       plotlyData.push({
         type: "surface",
-        name: "Satellite Map + Ocean SST",
+        name: "Sea Surface Temperature (SST)",
         x: surfX,
         y: surfY,
         z: surfZ,
-        surfacecolor: data.top_composite_surface || data.surface_sst,
-        colorscale: compositeColorscale,
-        cmin: 0, cmax: 40,
+        surfacecolor: data.surface_sst,
+        colorscale: activePalette,
+        cmin: 0,
+        cmax: 30,
         opacity: 1.0,
         showscale: false,
         hoverinfo: "skip",
