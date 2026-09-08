@@ -130,6 +130,19 @@ def get_embeddings_api(date: str = Query(None, description="Date YYYY-MM-DD")):
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
 
 
+@app.get("/api/gnn_inference")
+def get_gnn_inference_api(date: str = Query(None, description="Date YYYY-MM-DD")):
+    """
+    Execute OceanGraphNeuralNetwork (OceanGNN) spatial message passing
+    across the North Indian Ocean observation network.
+    """
+    try:
+        res = get_predictor().get_gnn_topology(date=date)
+        return JSONResponse(content=res)
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
+
+
 @app.get("/api/basin_map")
 def get_basin_map_api(
     date:    str   = Query(None, description="Date YYYY-MM-DD"),

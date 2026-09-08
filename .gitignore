@@ -46,3 +46,4 @@ logs/
 # Large raw ocean data files (>1GB total, exceeds GitHub LFS free tier)
 # Store these locally or in cloud storage (e.g., Google Drive, Zenodo)
 POWER HOUSE PROJECT/
+scratch/
