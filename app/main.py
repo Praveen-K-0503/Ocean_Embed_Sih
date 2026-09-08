@@ -131,6 +131,7 @@ def get_embeddings_api(date: str = Query(None, description="Date YYYY-MM-DD")):
 
 
 @app.get("/api/gnn_inference")
+@app.get("/api/gnn_graph")
 def get_gnn_inference_api(date: str = Query(None, description="Date YYYY-MM-DD")):
     """
     Execute OceanGraphNeuralNetwork (OceanGNN) spatial message passing
@@ -141,6 +142,15 @@ def get_gnn_inference_api(date: str = Query(None, description="Date YYYY-MM-DD")
         return JSONResponse(content=res)
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
+
+
+@app.get("/api/satellite_surface")
+def get_satellite_surface_api():
+    """Return high-resolution satellite top surface texture JSON."""
+    sat_file = ROOT / "app" / "static" / "data" / "satellite_surface.json"
+    if sat_file.exists():
+        return FileResponse(sat_file, media_type="application/json")
+    return JSONResponse(status_code=404, content={"status": "error", "message": "Satellite surface file not found"})
 
 
 @app.get("/api/basin_map")
@@ -175,6 +185,8 @@ def get_surface_observations_api(date: str = Query(None, description="Date YYYY-
 # ─── Validation & Metrics Endpoints ────────────────────────────────────────────
 
 @app.get("/api/argo_validation")
+@app.get("/api/argo/stations")
+@app.get("/api/argo_stations")
 def get_argo_validation_api(float_id: str = Query(None, description="Float ID (e.g. ARGO_INCOIS_001)")):
     """Return real INCOIS ARGO float temperature profiles for in-situ validation."""
     float_info   = get_validator().get_float_data(float_id=float_id)
@@ -184,6 +196,7 @@ def get_argo_validation_api(float_id: str = Query(None, description="Float ID (e
         "data_source":      "INCOIS ARGO In-Situ Float Network (SIH_Final_Data)",
         "argo_data":        float_info,
         "available_floats": all_floats,
+        "stations":         all_floats,
     })
 
 
