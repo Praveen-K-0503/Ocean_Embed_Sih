@@ -584,6 +584,14 @@
               </button>
             </div>
             <div class="studio-control-item">
+              <label><i class="fa-solid fa-microchip"></i> Render Engine</label>
+              <select id="studio-render-engine" onchange="renderStudio3D()">
+                <option value="auto" selected>Auto (3D WebGL / 2.5D Deck)</option>
+                <option value="webgl">Force 3D WebGL Mesh</option>
+                <option value="curtains_2d">2.5D Multi-Curtain Deck (No WebGL)</option>
+              </select>
+            </div>
+            <div class="studio-control-item">
               <label><i class="fa-solid fa-layer-group"></i> Transect Cut</label>
               <select id="studio-axis" onchange="renderStudio3D()">
                 <option value="lat">Latitude Fix (West–East: Arabian Sea & BoB)</option>
