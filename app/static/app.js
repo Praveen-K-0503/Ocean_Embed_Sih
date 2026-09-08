@@ -1389,6 +1389,22 @@ function jumpStudioRegion(lat, lon, name) {
 }
 
 let isSolidVolume = true;
+let lastStudioPayload = null;
+let activeCurtainTab = "lat";
+
+function isWebGLAvailable() {
+  try {
+    const canvas = document.createElement("canvas");
+    const gl = canvas.getContext("webgl", { failIfMajorPerformanceCaveat: false }) ||
+               canvas.getContext("experimental-webgl", { failIfMajorPerformanceCaveat: false });
+    if (!gl) return false;
+    const ext = gl.getExtension("WEBGL_lose_context");
+    if (ext) ext.loseContext();
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
 
 function toggleSolidVolume() {
   isSolidVolume = !isSolidVolume;
@@ -1444,6 +1460,14 @@ async function renderStudio3D() {
     const res = await fetch(url);
     const data = await res.json();
     if (data.status !== "success") throw new Error(data.message || "API error");
+
+    lastStudioPayload = data;
+
+    const renderEngine = document.getElementById("studio-render-engine")?.value || "auto";
+    if (renderEngine === "curtains_2d" || (renderEngine === "auto" && !isWebGLAvailable())) {
+      renderMultiCurtainFallback(data, studioLat, studioLon, studioMode, colorscale, buildActiveColorscale(colorscale));
+      return;
+    }
 
     // Populate sidebar stats
     const setS = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
@@ -2007,7 +2031,11 @@ async function renderStudio3D() {
       }
     };
 
+    if (window.Plotly && container) {
+      try { Plotly.purge(container); } catch(e) {}
+    }
     container.innerHTML = "";
+
     const config = {
       responsive: true,
       displayModeBar: true,
@@ -2018,7 +2046,15 @@ async function renderStudio3D() {
         height: 800, width: 1400, scale: 2
       }
     };
-    Plotly.newPlot("plotly-3d-studio-container", plotlyData, layout, config);
+    await Plotly.newPlot("plotly-3d-studio-container", plotlyData, layout, config);
+
+    // Check if Plotly WebGL context creation failed (injected WebGL error notice)
+    const errNotice = container.querySelector("p");
+    if (errNotice && errNotice.textContent && errNotice.textContent.toLowerCase().includes("webgl is not supported")) {
+      console.warn("Plotly WebGL 3D context failed in this session. Automatically transitioning to 2.5D Multi-Curtain Deck.");
+      renderMultiCurtainFallback(data, studioLat, studioLon, studioMode, colorscale, activePalette);
+      return;
+    }
 
     // Dynamic Compass Needle Rotation on 3D Camera Orbit
     const graphDiv = document.getElementById("plotly-3d-studio-container");
@@ -2035,9 +2071,226 @@ async function renderStudio3D() {
     }
 
   } catch (err) {
-    container.innerHTML = `<div style="color:#f87171; padding:30px; background:#060e1f; border-radius:14px; font-family:Plus Jakarta Sans,sans-serif;"><i class="fa-solid fa-triangle-exclamation"></i> Error rendering 3D visualization: ${err.message}</div>`;
-    console.error("Error rendering 3D Studio:", err);
+    console.error("Error rendering 3D Studio, falling back to 2.5D Deck:", err);
+    if (lastStudioPayload) {
+      const colorscale = document.getElementById("studio-colorscale")?.value ?? "Thermal";
+      renderMultiCurtainFallback(lastStudioPayload, studioLat, studioLon, studioMode, colorscale, buildActiveColorscale(colorscale));
+    } else {
+      container.innerHTML = `<div style="color:#f87171; padding:30px; background:#060e1f; border-radius:14px; font-family:Plus Jakarta Sans,sans-serif;"><i class="fa-solid fa-triangle-exclamation"></i> Error rendering visualization: ${err.message}</div>`;
+    }
   }
+}
+
+/* ============================================================
+   2.5D Multi-Curtain Subsurface Thermal Deck (High-Performance Fallback)
+   ============================================================ */
+function renderMultiCurtainFallback(data, studioLat, studioLon, studioMode, colorscale, activePalette) {
+  const container = document.getElementById("plotly-3d-studio-container");
+  if (!container) return;
+
+  if (window.Plotly) {
+    try { Plotly.purge(container); } catch(e) {}
+  }
+
+  container.innerHTML = `
+    <!-- Top WebGL Notice & Diagnostic Instructions -->
+    <div class="webgl-fallback-banner">
+      <div class="wfb-msg">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>
+          <strong>2.5D Multi-Curtain Subsurface Deck (Universal High-Performance View)</strong>
+          <span>Browser WebGL hardware acceleration is currently disabled or limited. Displaying high-precision 2D orthogonal thermal curtains down to 1000m depth. To enable full 3D WebGL orbit, enable hardware acceleration in <code>chrome://settings/system</code>.</span>
+        </div>
+      </div>
+      <button class="btn-retry-webgl" onclick="forceTryWebGL()"><i class="fa-solid fa-rotate"></i> Retry 3D WebGL</button>
+    </div>
+
+    <!-- Curtain Selector Nav Tabs -->
+    <div class="fallback-curtain-nav" id="fallback-curtain-nav">
+      <button class="btn-curtain-tab ${activeCurtainTab === 'lat' ? 'active' : ''}" onclick="switchCurtainTab('lat')"><i class="fa-solid fa-arrows-left-right"></i> Latitude Fix (${studioLat.toFixed(2)}°N)</button>
+      <button class="btn-curtain-tab ${activeCurtainTab === 'lon' ? 'active' : ''}" onclick="switchCurtainTab('lon')"><i class="fa-solid fa-arrows-up-down"></i> Longitude Fix (${studioLon.toFixed(2)}°E)</button>
+      <button class="btn-curtain-tab ${activeCurtainTab === 'south' ? 'active' : ''}" onclick="switchCurtainTab('south')"><i class="fa-solid fa-compass"></i> South Boundary (5°N)</button>
+      <button class="btn-curtain-tab ${activeCurtainTab === 'sst' ? 'active' : ''}" onclick="switchCurtainTab('sst')"><i class="fa-solid fa-water"></i> Surface SST Map</button>
+      <button class="btn-curtain-tab ${activeCurtainTab === 'd20' ? 'active' : ''}" onclick="switchCurtainTab('d20')"><i class="fa-solid fa-layer-group"></i> D20 Thermocline</button>
+    </div>
+
+    <!-- Plot Container for 2D Heatmap -->
+    <div id="fallback-plot-target" style="width:100%; height:100%; padding-top:105px; box-sizing:border-box;"></div>
+  `;
+
+  drawFallbackCurtainPlot(data, studioLat, studioLon, colorscale, activePalette);
+}
+
+function drawFallbackCurtainPlot(data, studioLat, studioLon, colorscale, activePalette) {
+  const target = document.getElementById("fallback-plot-target");
+  if (!target || !window.Plotly) return;
+
+  const depths = data.depths || [0, 5, 10, 20, 30, 50, 75, 100, 125, 150, 200, 300, 500, 700, 1000];
+  const lonsAll = data.lons_all || data.lons;
+  const latsAll = data.lats_all || data.lats;
+
+  let xCoords = lonsAll;
+  let yCoords = depths;
+  let zMatrix = data.lat_slice;
+  let xTitle = "Longitude across North Indian Ocean (°E)";
+  let yTitle = "Standard Depth (m)";
+  let titleText = `Latitude Cross-Section (${studioLat.toFixed(2)}°N) — Arabian Sea & Bay of Bengal`;
+  let isDepthPlot = true;
+  let zMin = 3.5, zMax = 30.0;
+  let unit = "°C";
+
+  if (activeCurtainTab === "south") {
+    xCoords = lonsAll;
+    yCoords = depths;
+    zMatrix = data.south_slice || data.lat_slice;
+    xTitle = "Longitude across Southern Boundary (45°E to 105°E)";
+    titleText = "Southern Boundary Thermal Curtain (5.00°N, 0–1000m Depth)";
+  } else if (activeCurtainTab === "lon") {
+    xCoords = latsAll;
+    yCoords = depths;
+    zMatrix = data.lon_slice;
+    xTitle = "Latitude across North Indian Ocean (°N)";
+    titleText = `Longitude Cross-Section (${studioLon.toFixed(2)}°E, 5°N to 30°N)`;
+  } else if (activeCurtainTab === "sst") {
+    xCoords = data.sub_lons || lonsAll;
+    yCoords = data.sub_lats || latsAll;
+    zMatrix = data.surface_sst;
+    xTitle = "Longitude (°E)";
+    yTitle = "Latitude (°N)";
+    titleText = "Sea Surface Temperature (OSTIA SST Satellite Channel, 0m Depth)";
+    isDepthPlot = false;
+  } else if (activeCurtainTab === "d20") {
+    xCoords = data.sub_lons || lonsAll;
+    yCoords = data.sub_lats || latsAll;
+    zMatrix = data.d20_thermocline || data.d20_depth_map;
+    xTitle = "Longitude (°E)";
+    yTitle = "Latitude (°N)";
+    titleText = "20°C Isotherm Thermocline Depth Map (D20 Topography in meters)";
+    isDepthPlot = false;
+    zMin = 40.0; zMax = 160.0;
+    unit = "m";
+  } else {
+    // Default: Latitude cut at probe point
+    xCoords = lonsAll;
+    yCoords = depths;
+    zMatrix = data.lat_slice;
+    xTitle = "Longitude across North Indian Ocean (°E)";
+    titleText = `OceanEmbed Subsurface Thermal Transect (${studioLat.toFixed(2)}°N, 45°E–105°E, 0–1000m)`;
+  }
+
+  const traces = [
+    {
+      x: xCoords,
+      y: yCoords,
+      z: zMatrix,
+      type: "heatmap",
+      colorscale: activePalette,
+      zsmooth: "best",
+      zmin: zMin,
+      zmax: zMax,
+      colorbar: {
+        orientation: "h",
+        x: 0.22,
+        y: -0.16,
+        len: 0.45,
+        thickness: 14,
+        title: { text: unit === "m" ? "D20 Depth (m)" : "Temperature (°C)", font: { color: "#ffffff", size: 11 } },
+        tickfont: { color: "#cbd5e1", size: 9 },
+        bgcolor: "rgba(6, 14, 31, 0.8)",
+        bordercolor: "rgba(56, 189, 248, 0.4)",
+        borderwidth: 1
+      },
+      hovertemplate: isDepthPlot ?
+        "Depth: %{y}m<br>Coordinate: %{x:.2f}°<br>Temperature: %{z:.2f}°C<extra></extra>" :
+        `Lat: %{y:.2f}°N<br>Lon: %{x:.2f}°E<br>${unit === 'm' ? 'D20 Depth' : 'SST'}: %{z:.2f} ${unit}<extra></extra>`
+    }
+  ];
+
+  // Overlay probe vertical marker line if viewing latitude cut
+  if (isDepthPlot && activeCurtainTab !== "lon") {
+    traces.push({
+      x: [studioLon, studioLon],
+      y: [0, 1000],
+      type: "scatter",
+      mode: "lines",
+      name: `Probe Lon (${studioLon.toFixed(2)}°E)`,
+      line: { color: "#fbbf24", width: 2.5, dash: "dash" },
+      hoverinfo: "skip"
+    });
+  } else if (isDepthPlot && activeCurtainTab === "lon") {
+    traces.push({
+      x: [studioLat, studioLat],
+      y: [0, 1000],
+      type: "scatter",
+      mode: "lines",
+      name: `Probe Lat (${studioLat.toFixed(2)}°N)`,
+      line: { color: "#fbbf24", width: 2.5, dash: "dash" },
+      hoverinfo: "skip"
+    });
+  }
+
+  const layout = {
+    title: {
+      text: `<b>${titleText}</b> — ${data.date || '2024-06-01'}`,
+      font: { color: "#38bdf8", size: 13, family: "Plus Jakarta Sans, sans-serif" },
+      x: 0.03,
+      xanchor: "left"
+    },
+    autosize: true,
+    margin: { l: 60, r: 35, t: 35, b: 65 },
+    paper_bgcolor: "transparent",
+    plot_bgcolor: "#060e1f",
+    xaxis: {
+      title: { text: xTitle, font: { color: "#94a3b8", size: 11 } },
+      tickfont: { color: "#cbd5e1", size: 10 },
+      gridcolor: "rgba(56, 189, 248, 0.15)",
+      zeroline: false
+    },
+    yaxis: {
+      autorange: isDepthPlot ? "reversed" : true,
+      title: { text: yTitle, font: { color: "#94a3b8", size: 11 } },
+      tickfont: { color: "#cbd5e1", size: 10 },
+      gridcolor: "rgba(56, 189, 248, 0.15)",
+      zeroline: false
+    },
+    showlegend: isDepthPlot,
+    legend: {
+      orientation: "h",
+      x: 0.65,
+      y: 1.08,
+      font: { color: "#cbd5e1", size: 10 }
+    }
+  };
+
+  const config = {
+    responsive: true,
+    displayModeBar: true,
+    displaylogo: false,
+    modeBarButtonsToRemove: ["lasso2d", "select2d"]
+  };
+
+  Plotly.newPlot("fallback-plot-target", traces, layout, config);
+}
+
+function switchCurtainTab(tabKey) {
+  activeCurtainTab = tabKey;
+  document.querySelectorAll(".btn-curtain-tab").forEach(btn => btn.classList.remove("active"));
+  if (typeof event !== "undefined" && event && event.target) {
+    event.target.closest("button")?.classList.add("active");
+  }
+  if (lastStudioPayload) {
+    const lat = parseFloat(document.getElementById("studio-lat")?.value ?? "15.0");
+    const lon = parseFloat(document.getElementById("studio-lon")?.value ?? "65.0");
+    const colorscale = document.getElementById("studio-colorscale")?.value ?? "Thermal";
+    const palette = buildActiveColorscale(colorscale);
+    drawFallbackCurtainPlot(lastStudioPayload, lat, lon, colorscale, palette);
+  }
+}
+
+function forceTryWebGL() {
+  const engineEl = document.getElementById("studio-render-engine");
+  if (engineEl) engineEl.value = "webgl";
+  renderStudio3D();
 }
 
 /* Interactive 3D Camera Rotation via Compass (N, S, E, W, Reset) */
