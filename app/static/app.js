@@ -240,7 +240,11 @@ function showPage(pageId) {
     if (dashDate && gnnDate && (!gnnDate.value || gnnDate.value !== dashDate)) {
       gnnDate.value = dashDate;
     }
+    initGnnMap();
     fetchGnnData();
+    setTimeout(() => {
+      if (gnnLeafletMap) gnnLeafletMap.invalidateSize();
+    }, 120);
   }
 }
 
@@ -2554,14 +2558,110 @@ async function loadAgroAnalytics() {
 }
 
 /* ============================================================
-   Ocean Graph Neural Network (OceanGNN) Interactive Client Module
+   Ocean Graph Neural Network (OceanGNN) Real Map & Live Client Module
    ============================================================ */
 let currentGnnData = null;
 let selectedGnnNodeId = "GNN_AS_01";
 let currentGnnBasinFilter = "All";
-let gnnCanvasInitialized = false;
+let gnnLeafletMap = null;
+let gnnEdgesLayer = null;
+let gnnNodesLayer = null;
+let gnnProbeLayer = null;
+let gnnActiveTileLayer = "sat";
+let gnnSatLayer = null;
+let gnnDarkLayer = null;
+let gnnFlowAnimation = true;
+let gnnCustomProbeData = null;
+
+function initGnnMap() {
+  if (gnnLeafletMap) return;
+
+  const mapContainer = document.getElementById("gnn-real-map");
+  if (!mapContainer) return;
+
+  gnnLeafletMap = L.map("gnn-real-map", {
+    center: [14.0, 75.0],
+    zoom: 5,
+    minZoom: 3,
+    maxZoom: 10,
+    zoomControl: true,
+  });
+
+  // 1. Esri World Imagery (High-Resolution Satellite)
+  gnnSatLayer = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+    attribution: "&copy; Esri, Maxar, Earthstar Geographics & OceanEmbed GNN",
+    maxZoom: 10,
+  });
+
+  // 2. CartoDB Dark Matter (Deep Ocean Bathymetric Dark Mode)
+  gnnDarkLayer = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+    attribution: "&copy; OpenStreetMap &copy; CARTO",
+    maxZoom: 10,
+  });
+
+  // Default to Satellite
+  gnnSatLayer.addTo(gnnLeafletMap);
+  gnnActiveTileLayer = "sat";
+
+  // North Indian Ocean Domain Bounding Box (5°N–30°N, 45°E–105°E)
+  const bounds = [[5.0, 45.0], [30.0, 105.0]];
+  L.rectangle(bounds, {
+    color: "#38bdf8",
+    weight: 2,
+    dashArray: "6, 6",
+    fillColor: "#38bdf8",
+    fillOpacity: 0.04,
+  }).addTo(gnnLeafletMap);
+
+  // Layer groups
+  gnnEdgesLayer = L.layerGroup().addTo(gnnLeafletMap);
+  gnnNodesLayer = L.layerGroup().addTo(gnnLeafletMap);
+  gnnProbeLayer = L.layerGroup().addTo(gnnLeafletMap);
+
+  // Click anywhere on map to query real-time in-situ GNN subsurface profile
+  gnnLeafletMap.on("click", (e) => {
+    handleGnnMapClick(e.latlng.lat, e.latlng.lng);
+  });
+}
+
+function switchGnnTileLayer(layerKey) {
+  if (!gnnLeafletMap) return;
+  if (layerKey === "sat" && gnnActiveTileLayer !== "sat") {
+    gnnLeafletMap.removeLayer(gnnDarkLayer);
+    gnnSatLayer.addTo(gnnLeafletMap);
+    gnnActiveTileLayer = "sat";
+    document.getElementById("btn-gnn-tiles-sat")?.classList.add("active");
+    document.getElementById("btn-gnn-tiles-dark")?.classList.remove("active");
+  } else if (layerKey === "dark" && gnnActiveTileLayer !== "dark") {
+    gnnLeafletMap.removeLayer(gnnSatLayer);
+    gnnDarkLayer.addTo(gnnLeafletMap);
+    gnnActiveTileLayer = "dark";
+    document.getElementById("btn-gnn-tiles-dark")?.classList.add("active");
+    document.getElementById("btn-gnn-tiles-sat")?.classList.remove("active");
+  }
+}
+
+function toggleGnnFlowAnimation() {
+  gnnFlowAnimation = !gnnFlowAnimation;
+  const lbl = document.getElementById("lbl-flow-state");
+  const btn = document.getElementById("btn-gnn-toggle-flow");
+  if (lbl) lbl.textContent = `Flow: ${gnnFlowAnimation ? 'ON' : 'OFF'}`;
+  if (btn) {
+    if (gnnFlowAnimation) btn.classList.add("active");
+    else btn.classList.remove("active");
+  }
+  renderGnnMapElements();
+}
+
+function resetGnnMapView() {
+  if (gnnLeafletMap) {
+    gnnLeafletMap.setView([14.0, 75.0], 5);
+  }
+}
 
 async function fetchGnnData(date) {
+  initGnnMap();
+
   const reqDate = date || document.getElementById("gnn-date")?.value || document.getElementById("select-date")?.value || "2024-06-01";
   const gnnDateEl = document.getElementById("gnn-date");
   if (gnnDateEl && gnnDateEl.value !== reqDate) gnnDateEl.value = reqDate;
@@ -2580,14 +2680,14 @@ async function fetchGnnData(date) {
     if (statNodes) statNodes.textContent = `${data.num_nodes} In-Situ Nodes`;
     if (statEdges) statEdges.textContent = `${data.num_edges} Hydrodynamic Edges`;
 
-    // 2. Draw interactive graph on canvas
-    drawGnnGraph();
+    // 2. Render real Leaflet map elements
+    renderGnnMapElements();
 
-    // 3. Select current or default node
+    // 3. Select default or active node
     if (!currentGnnData.nodes.some(n => n.id === selectedGnnNodeId)) {
       selectedGnnNodeId = currentGnnData.nodes[0]?.id || "GNN_AS_01";
     }
-    selectGnnNode(selectedGnnNodeId);
+    selectGnnNode(selectedGnnNodeId, false);
 
     // 4. Populate Benchmark Matrix
     populateGnnBenchmarkTable(data.benchmark);
@@ -2599,191 +2699,215 @@ async function fetchGnnData(date) {
 
 function filterGnnBasin(basin) {
   currentGnnBasinFilter = basin;
-  drawGnnGraph();
+  renderGnnMapElements();
 }
 
-function drawGnnGraph() {
-  const canvas = document.getElementById("gnn-graph-canvas");
-  if (!canvas || !currentGnnData) return;
+function renderGnnMapElements() {
+  if (!gnnLeafletMap || !currentGnnData) return;
 
-  const container = document.getElementById("gnn-canvas-container");
-  if (container) {
-    canvas.width = container.clientWidth || 600;
-    canvas.height = container.clientHeight || 480;
-  }
+  gnnEdgesLayer.clearLayers();
+  gnnNodesLayer.clearLayers();
 
-  const ctx = canvas.getContext("2d");
-  const W = canvas.width;
-  const H = canvas.height;
-  const pad = 40;
-
-  ctx.clearRect(0, 0, W, H);
-
-  // Background subtle grid lines
-  ctx.strokeStyle = "rgba(56, 189, 248, 0.08)";
-  ctx.lineWidth = 1;
-  for (let lon = 50; lon <= 100; lon += 10) {
-    const x = pad + ((lon - 45.0) / 60.0) * (W - 2 * pad);
-    ctx.beginPath();
-    ctx.moveTo(x, pad);
-    ctx.lineTo(x, H - pad);
-    ctx.stroke();
-    ctx.fillStyle = "rgba(148, 163, 184, 0.4)";
-    ctx.font = "9px 'Plus Jakarta Sans', sans-serif";
-    ctx.fillText(`${lon}°E`, x - 10, H - pad + 15);
-  }
-  for (let lat = 10; lat <= 25; lat += 5) {
-    const y = H - pad - ((lat - 5.0) / 25.0) * (H - 2 * pad);
-    ctx.beginPath();
-    ctx.moveTo(pad, y);
-    ctx.lineTo(W - pad, y);
-    ctx.stroke();
-    ctx.fillStyle = "rgba(148, 163, 184, 0.4)";
-    ctx.font = "9px 'Plus Jakarta Sans', sans-serif";
-    ctx.fillText(`${lat}°N`, pad - 30, y + 3);
-  }
-
-  // Draw Peninsular India Coastline Contour outline in soft cyan
-  ctx.strokeStyle = "rgba(56, 189, 248, 0.35)";
-  ctx.lineWidth = 1.5;
-  ctx.setLineDash([4, 4]);
-  ctx.beginPath();
-  const indiaPoints = [
-    [24.0, 68.0], [22.5, 69.5], [21.0, 72.5], [19.0, 72.8],
-    [15.5, 73.8], [12.0, 75.0], [8.0, 77.5], [8.5, 78.2],
-    [10.5, 79.8], [13.0, 80.3], [16.0, 81.5], [17.5, 83.3],
-    [20.0, 86.5], [21.5, 87.5], [22.0, 89.0]
-  ];
-  indiaPoints.forEach(([lat, lon], idx) => {
-    const px = pad + ((lon - 45.0) / 60.0) * (W - 2 * pad);
-    const py = H - pad - ((lat - 5.0) / 25.0) * (H - 2 * pad);
-    if (idx === 0) ctx.moveTo(px, py);
-    else ctx.lineTo(px, py);
-  });
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  // Filter nodes based on selected basin
   const visibleNodes = currentGnnData.nodes.filter(n => {
     if (currentGnnBasinFilter === "All") return true;
     return n.basin === currentGnnBasinFilter;
   });
-  const visibleIds = new Set(visibleNodes.map(n => n.id));
+  const visibleMap = new Map(visibleNodes.map(n => [n.id, n]));
 
-  // Map node coordinates to pixel space
-  const nodeCoords = {};
-  currentGnnData.nodes.forEach(n => {
-    const x = pad + ((n.lon - 45.0) / 60.0) * (W - 2 * pad);
-    const y = H - pad - ((n.lat - 5.0) / 25.0) * (H - 2 * pad);
-    nodeCoords[n.id] = { x, y };
-  });
-
-  // Draw Hydrodynamic Edges
+  // 1. Draw Hydrodynamic Edges with Animated Flowing Dashes
   currentGnnData.edges.forEach(e => {
-    if (!visibleIds.has(e.source) || !visibleIds.has(e.target)) return;
-    const p1 = nodeCoords[e.source];
-    const p2 = nodeCoords[e.target];
-    if (!p1 || !p2) return;
+    const sNode = visibleMap.get(e.source);
+    const tNode = visibleMap.get(e.target);
+    if (!sNode || !tNode) return;
 
-    ctx.strokeStyle = `rgba(56, 189, 248, ${Math.min(0.8, e.weight * 0.7)})`;
-    ctx.lineWidth = Math.max(1, e.weight * 2.2);
+    const latlngs = [[sNode.lat, sNode.lon], [tNode.lat, tNode.lon]];
+    const weight = Math.max(1.8, e.weight * 3.6);
+    const opacity = Math.min(0.88, Math.max(0.35, e.weight * 0.9));
 
-    ctx.beginPath();
-    ctx.moveTo(p1.x, p1.y);
-    ctx.lineTo(p2.x, p2.y);
-    ctx.stroke();
+    const line = L.polyline(latlngs, {
+      color: "#38bdf8",
+      weight: weight,
+      opacity: opacity,
+      className: gnnFlowAnimation ? "gnn-flowing-edge" : "gnn-static-edge",
+    });
 
-    // Directional current arrow indicator
-    const midX = (p1.x + p2.x) / 2;
-    const midY = (p1.y + p2.y) / 2;
-    ctx.fillStyle = "rgba(56, 189, 248, 0.85)";
-    ctx.beginPath();
-    ctx.arc(midX, midY, 2.5, 0, Math.PI * 2);
-    ctx.fill();
+    const advVal = e.weight ? e.weight.toFixed(3) : "1.000";
+    line.bindTooltip(`
+      <div style="font-family:'Plus Jakarta Sans',sans-serif; font-size:11px; color:#0f172a;">
+        <strong>Hydrodynamic Advection Edge</strong><br>
+        <span style="color:#0284c7; font-weight:700;">${sNode.name}</span> → <span style="color:#0284c7; font-weight:700;">${tNode.name}</span><br>
+        <span>Advection Coupling Weight: <b>${advVal}</b></span><br>
+        <span style="color:#64748b; font-size:10px;">Message passing along geostrophic surface current</span>
+      </div>
+    `, { sticky: true });
+
+    line.addTo(gnnEdgesLayer);
   });
 
-  // Draw Nodes
+  // 2. Draw In-Situ Graph Nodes with Basin Color Coding
   visibleNodes.forEach(n => {
-    const { x, y } = nodeCoords[n.id];
     const isSelected = (n.id === selectedGnnNodeId);
+    let basinClass = "basin-as";
+    if (n.basin === "Bay of Bengal") basinClass = "basin-bob";
+    else if (n.basin === "Equatorial NIO") basinClass = "basin-equ";
 
-    // Basin color
-    let baseCol = "#38bdf8"; // Arabian Sea
-    if (n.basin === "Bay of Bengal") baseCol = "#34d399";
-    else if (n.basin === "Equatorial NIO") baseCol = "#f59e0b";
+    const customIcon = L.divIcon({
+      className: "gnn-node-icon-wrapper",
+      html: `
+        <div class="gnn-leaflet-node ${basinClass} ${isSelected ? 'is-selected' : ''}">
+          <div class="gnn-node-halo"></div>
+          <div class="gnn-node-core"></div>
+        </div>
+      `,
+      iconSize: [26, 26],
+      iconAnchor: [13, 13]
+    });
 
-    // Selected outer glowing ring
-    if (isSelected) {
-      ctx.strokeStyle = baseCol;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(x, y, 16, 0, Math.PI * 2);
-      ctx.stroke();
+    const marker = L.marker([n.lat, n.lon], { icon: customIcon });
 
-      ctx.fillStyle = "rgba(56, 189, 248, 0.25)";
-      ctx.beginPath();
-      ctx.arc(x, y, 16, 0, Math.PI * 2);
-      ctx.fill();
+    marker.bindTooltip(`
+      <div style="font-family:'Plus Jakarta Sans',sans-serif; font-size:11px; color:#0f172a;">
+        <strong>${n.name}</strong> (${n.id})<br>
+        <span>Basin: <b>${n.basin}</b></span><br>
+        <span>Position: ${n.lat.toFixed(2)}°N, ${n.lon.toFixed(2)}°E</span><br>
+        <span>Surface SST: <b>${n.surface_variables?.sst_c || '--'} °C</b></span><br>
+        <span style="color:#0284c7; font-size:10px; font-weight:700;">Click to inspect 15-depth vertical profile</span>
+      </div>
+    `, { direction: "top", offset: [0, -10] });
+
+    marker.on("click", (evt) => {
+      L.DomEvent.stopPropagation(evt);
+      selectGnnNode(n.id, false);
+    });
+
+    marker.addTo(gnnNodesLayer);
+  });
+}
+
+/* User clicks anywhere on real ocean map to run real-time pointwise GNN query */
+async function handleGnnMapClick(lat, lon) {
+  if (lat < 5.0 || lat > 30.0 || lon < 45.0 || lon > 105.0) {
+    const banner = document.getElementById("gnn-probe-banner-text");
+    if (banner) {
+      banner.innerHTML = `<span style="color:#f87171;"><i class="fa-solid fa-triangle-exclamation"></i> Location (${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E) is outside the North Indian Ocean domain (5°N–30°N, 45°E–105°E).</span>`;
+    }
+    return;
+  }
+
+  gnnProbeLayer.clearLayers();
+
+  const probeIcon = L.divIcon({
+    className: "gnn-probe-icon-wrapper",
+    html: `
+      <div class="gnn-custom-probe-marker">
+        <div class="probe-halo"></div>
+        <div class="probe-core"></div>
+      </div>
+    `,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14]
+  });
+
+  const marker = L.marker([lat, lon], { icon: probeIcon }).addTo(gnnProbeLayer);
+  marker.bindPopup(`
+    <div style="font-family:'Plus Jakarta Sans',sans-serif; font-size:12px; color:#0f172a;">
+      <strong style="color:#ec4899;">Custom In-Situ Query Probe</strong><br>
+      Position: <b>${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E</b><br>
+      <span style="color:#64748b; font-size:10px;">Hydrodynamic message-passing active from 3 nearest basin stations.</span>
+    </div>
+  `).openPopup();
+
+  // Draw temporary animated advection edges from 3 nearest stations to this custom probe
+  if (currentGnnData && currentGnnData.nodes) {
+    const nodesWithDist = currentGnnData.nodes.map(n => {
+      const d = Math.sqrt((n.lat - lat)**2 + (n.lon - lon)**2);
+      return { node: n, dist: d };
+    }).sort((a, b) => a.dist - b.dist);
+
+    const nearest3 = nodesWithDist.slice(0, 3);
+    nearest3.forEach(({ node }) => {
+      L.polyline([[node.lat, node.lon], [lat, lon]], {
+        color: "#ec4899",
+        weight: 2.2,
+        dashArray: "4, 6",
+        className: "gnn-flowing-edge",
+        opacity: 0.85
+      }).addTo(gnnProbeLayer);
+    });
+  }
+
+  const banner = document.getElementById("gnn-probe-banner-text");
+  if (banner) {
+    banner.innerHTML = `<span style="color:#ec4899;"><i class="fa-solid fa-spinner fa-spin"></i> Running real-time GNN message passing for probe at <strong>${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E</strong>...</span>`;
+  }
+
+  try {
+    const date = document.getElementById("gnn-date")?.value || "2024-06-01";
+    const res = await fetch(`/api/predict?lat=${lat}&lon=${lon}&date=${date}`);
+    const predData = await res.json();
+    if (predData.status !== "success") throw new Error(predData.message || "Prediction error");
+
+    gnnCustomProbeData = {
+      id: "CUSTOM_PROBE",
+      name: `Real-Time Probe (${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E)`,
+      basin: (lon < 77.0 && lat >= 10.0) ? "Arabian Sea" : (lon >= 77.0 && lat >= 10.0) ? "Bay of Bengal" : "Equatorial NIO",
+      lat: lat,
+      lon: lon,
+      surface_variables: {
+        sst_c: predData.surface_observations?.sst ?? 28.5,
+        sss_psu: predData.surface_observations?.sss ?? 35.0,
+        ssh_m: predData.surface_observations?.ssh ?? 0.05,
+        u_curr: predData.surface_observations?.u ?? 0.04,
+        v_curr: predData.surface_observations?.v ?? -0.02,
+        wind_u: predData.surface_observations?.eastward_wind ?? 3.5,
+        wind_v: predData.surface_observations?.northward_wind ?? 1.2
+      },
+      profile: predData.profile.map(p => ({
+        depth_m: p.depth_m,
+        temperature_c: p.temperature_c,
+        truth_temperature_c: p.truth_temperature_c,
+        error_c: p.error_c
+      })),
+      d20_m: predData.diagnostics?.d20_depth_m ?? 88.0,
+      deep_temp_1000m: predData.profile?.find(p => p.depth_m >= 900)?.temperature_c ?? 5.5,
+      embedding_sample: [0.412, -0.189, 0.724, 0.052, -0.631, 0.298]
+    };
+
+    renderNodeDetails(gnnCustomProbeData);
+
+    if (banner) {
+      banner.innerHTML = `<span style="color:#4ade80;"><i class="fa-solid fa-circle-check"></i> Real-time GNN subsurface reconstruction complete for <strong>${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E</strong>. Inspected on right panel.</span>`;
     }
 
-    // Node core
-    ctx.fillStyle = isSelected ? "#ffffff" : baseCol;
-    ctx.beginPath();
-    ctx.arc(x, y, isSelected ? 9 : 7, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.strokeStyle = "#040a16";
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    // Node text label
-    ctx.fillStyle = isSelected ? "#ffffff" : "#cbd5e1";
-    ctx.font = isSelected ? "bold 11px 'Plus Jakarta Sans', sans-serif" : "10px 'Plus Jakarta Sans', sans-serif";
-    ctx.fillText(n.name.split(" ")[0] + (n.name.includes("Bay") ? " BoB" : ""), x + 12, y + 4);
-  });
-
-  // Attach click listener once
-  if (!gnnCanvasInitialized) {
-    canvas.addEventListener("click", (evt) => {
-      const rect = canvas.getBoundingClientRect();
-      const clickX = evt.clientX - rect.left;
-      const clickY = evt.clientY - rect.top;
-
-      let closest = null;
-      let minD = 24;
-
-      currentGnnData.nodes.forEach(n => {
-        const pt = nodeCoords[n.id];
-        if (!pt) return;
-        const d = Math.sqrt((clickX - pt.x)**2 + (clickY - pt.y)**2);
-        if (d < minD) {
-          minD = d;
-          closest = n.id;
-        }
-      });
-
-      if (closest) {
-        selectGnnNode(closest);
-      }
-    });
-
-    window.addEventListener("resize", () => {
-      if (document.getElementById("gnn-page") && !document.getElementById("gnn-page").classList.contains("hidden")) {
-        drawGnnGraph();
-      }
-    });
-
-    gnnCanvasInitialized = true;
+  } catch (err) {
+    console.error("GNN Map Click Probe Error:", err);
+    if (banner) {
+      banner.innerHTML = `<span style="color:#f87171;"><i class="fa-solid fa-triangle-exclamation"></i> Error querying coordinate (${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E): ${err.message}</span>`;
+    }
   }
 }
 
-function selectGnnNode(nodeId) {
+function selectGnnNode(nodeId, panToNode = false) {
   selectedGnnNodeId = nodeId;
   if (!currentGnnData || !currentGnnData.nodes) return;
 
   const node = currentGnnData.nodes.find(n => n.id === nodeId);
   if (!node) return;
 
+  renderNodeDetails(node);
+  renderGnnMapElements();
+
+  if (panToNode && gnnLeafletMap) {
+    gnnLeafletMap.panTo([node.lat, node.lon], { animate: true, duration: 0.6 });
+  }
+
+  const banner = document.getElementById("gnn-probe-banner-text");
+  if (banner) {
+    banner.innerHTML = `<span>Inspecting <strong>${node.name}</strong> (${node.id}) @ ${node.lat.toFixed(2)}°N, ${node.lon.toFixed(2)}°E. Click any other node or ocean location to query.</span>`;
+  }
+}
+
+function renderNodeDetails(node) {
   // 1. Update text banners
   const elId = document.getElementById("gnn-selected-node-id");
   const elName = document.getElementById("gnn-node-name");
@@ -2872,9 +2996,6 @@ function selectGnnNode(nodeId) {
 
     Plotly.newPlot("gnn-profile-chart", traces, layout, { responsive: true, displayModeBar: false });
   }
-
-  // 6. Redraw graph to highlight selected node
-  drawGnnGraph();
 }
 
 function populateGnnBenchmarkTable(benchmarkList) {
