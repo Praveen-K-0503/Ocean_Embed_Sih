@@ -59,10 +59,14 @@ def shutdown_event():
         _predictor = None
 
 
-# ─── Static Files ──────────────────────────────────────────────────────────────
+# ─── Static & Video Files ──────────────────────────────────────────────────────
 STATIC_DIR = ROOT / "app" / "static"
 STATIC_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+VIDEO_DIR = ROOT / "video"
+if VIDEO_DIR.exists():
+    app.mount("/video", StaticFiles(directory=str(VIDEO_DIR)), name="video")
 
 
 @app.get("/")
