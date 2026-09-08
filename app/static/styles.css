@@ -4347,43 +4347,160 @@ select:focus {
   pointer-events: none;
 }
 
-/* Seamless Navbar Integration when Home Page is Active */
-.app-container:has(#home-page:not(.hidden)) {
-  padding-bottom: 0;
-  background: transparent;
-}
-
+/* Hide standard navbar ONLY when Home page is active */
 .app-container:has(#home-page:not(.hidden)) .navbar {
-  background: rgba(10, 20, 32, 0.82);
-  border-color: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  display: none !important;
 }
 
-.app-container:has(#home-page:not(.hidden)) .navbar .brand-title {
+/* Elegant Custom Header for Home Page (Designed Specifically for Ocean Landing) */
+.home-custom-header {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 1240px;
+  margin: 14px auto 0 auto;
+  padding: 10px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(10, 24, 42, 0.60);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 18px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  animation: heroFadeIn 0.5s ease-out forwards;
+}
+
+.hch-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.hch-logo-badge {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #0284c7, #0369a1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
   color: #ffffff;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
+  border: 1px solid rgba(56, 189, 248, 0.4);
 }
 
-.app-container:has(#home-page:not(.hidden)) .navbar .page-nav {
-  background: rgba(15, 25, 40, 0.65);
-  border-color: rgba(255, 255, 255, 0.12);
+.hch-brand-text {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
 }
 
-.app-container:has(#home-page:not(.hidden)) .navbar .nav-link {
-  color: #94a3b8;
+.hch-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
 }
 
-.app-container:has(#home-page:not(.hidden)) .navbar .nav-link:hover {
-  color: #38bdf8;
-  background: rgba(56, 189, 248, 0.15);
+.hch-subtitle {
+  font-size: 10.5px;
+  color: #7dd3fc;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
-.app-container:has(#home-page:not(.hidden)) .navbar .nav-link.active {
+/* Quick Navigation Links */
+.hch-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hch-nav-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #e0f2fe;
+  font-family: var(--font-main);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hch-nav-btn:hover {
   background: rgba(56, 189, 248, 0.25);
-  color: #38bdf8;
-  border-color: rgba(56, 189, 248, 0.5);
+  border-color: #38bdf8;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(56, 189, 248, 0.25);
 }
 
-/* Navbar Sign Out Button */
+/* Top Right Group with Sign Out Button */
+.hch-right-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hch-status-pill {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(16, 185, 129, 0.18);
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  color: #6ee7b7;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 14px;
+}
+
+.hch-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  animation: pulse 2s infinite;
+}
+
+.hch-btn-signout {
+  background: rgba(239, 68, 68, 0.18);
+  color: #fca5a5;
+  border: 1.5px solid rgba(239, 68, 68, 0.5);
+  font-family: var(--font-main);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 7px 18px;
+  border-radius: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hch-btn-signout:hover {
+  background: #ef4444;
+  color: #ffffff;
+  border-color: #ef4444;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.5);
+}
+
+/* Navbar Sign Out Button (Used on Inner Platform Pages) */
 .nav-btn-logout {
   background: rgba(239, 68, 68, 0.15);
   color: #fca5a5;
@@ -4611,33 +4728,6 @@ select:focus {
   box-shadow: 0 6px 20px rgba(2, 132, 199, 0.32);
 }
 
-.btn-hero-signout-inline {
-  height: 44px;
-  background: rgba(254, 242, 242, 0.94);
-  color: #b91c1c;
-  border: 1.5px solid rgba(239, 68, 68, 0.65);
-  font-family: var(--font-main);
-  font-size: 14px;
-  font-weight: 700;
-  padding: 0 20px;
-  border-radius: 12px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.btn-hero-signout-inline:hover {
-  background: #ef4444;
-  color: #ffffff;
-  border-color: #ef4444;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
-}
-
 /* Centered Symmetrical 2x2 Capability Boxes with Pin-Pointed Alignments */
 .home-caps-section {
   width: 100%;
@@ -4760,6 +4850,16 @@ select:focus {
 }
 
 @media (max-width: 768px) {
+  .home-custom-header {
+    margin: 8px 10px 0 10px;
+    padding: 8px 14px;
+  }
+  .hch-nav-links {
+    display: none;
+  }
+  .hch-status-pill {
+    display: none;
+  }
   .home-hero-headline {
     font-size: 28px;
   }

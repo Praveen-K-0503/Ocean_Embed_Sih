@@ -229,6 +229,16 @@ function showPage(pageId) {
   const target = document.getElementById(pageId);
   if (target) target.classList.remove("hidden");
 
+  // Manage top navigation bar visibility: Hide standard navbar ONLY on home-page
+  const mainNav = document.querySelector(".navbar");
+  if (mainNav) {
+    if (pageId === "home-page") {
+      mainNav.style.display = "none";
+    } else {
+      mainNav.style.display = "flex";
+    }
+  }
+
   if (pageId === "home-page") {
     const btn = document.getElementById("nav-btn-home");
     if (btn) btn.classList.add("active");
