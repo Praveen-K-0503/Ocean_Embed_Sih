@@ -9,70 +9,14 @@ initTheme();
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
   initOceanCanvasWave();
-  initIntroVideo();
   if (sessionStorage.getItem("ocean_logged_in") === "true") {
     showDashboard();
-    dismissVideoIntro(true);
   }
   initInteractiveLogin();
 });
 
-/* ============================================================
-   Cinematic Video Intro Overlay Controls (In Front of Login)
-   ============================================================ */
-function initIntroVideo() {
-  const introVid = document.getElementById("intro-video-element");
-  const bgVid = document.getElementById("login-bg-video");
-
-  if (introVid) {
-    introVid.muted = true;
-    introVid.volume = 0;
-    introVid.play().catch(err => {
-      console.log("Intro video waiting for user interaction:", err);
-    });
-  }
-
-  if (bgVid) {
-    bgVid.muted = true;
-    bgVid.volume = 0;
-    bgVid.play().catch(() => {});
-  }
-}
-
-function dismissVideoIntro(instant = false) {
-  const overlay = document.getElementById("ocean-video-intro-overlay");
-  if (!overlay) return;
-  if (instant) {
-    overlay.style.display = "none";
-  } else {
-    overlay.classList.add("dismissed");
-    setTimeout(() => {
-      overlay.style.display = "none";
-    }, 750);
-  }
-  const bgVid = document.getElementById("login-bg-video");
-  if (bgVid && bgVid.paused) {
-    bgVid.muted = true;
-    bgVid.play().catch(() => {});
-  }
-}
-
-function showVideoIntro() {
-  const overlay = document.getElementById("ocean-video-intro-overlay");
-  const introVid = document.getElementById("intro-video-element");
-  if (overlay) {
-    overlay.style.display = "flex";
-    overlay.classList.remove("dismissed");
-    if (introVid) {
-      introVid.currentTime = 0;
-      introVid.muted = true;
-      introVid.play().catch(() => {});
-    }
-  }
-}
-
-
 /* Fast 60FPS HTML5 Canvas Ocean Wave Renderer */
+
 function initOceanCanvasWave() {
   const canvas = document.getElementById("ocean-wave-canvas");
   if (!canvas) return;
@@ -93,18 +37,20 @@ function initOceanCanvasWave() {
     const isDark = document.documentElement.getAttribute("data-theme") === "dark";
     const bgGradient = ctx.createLinearGradient(0, 0, 0, height);
     if (isDark) {
-      bgGradient.addColorStop(0, "#050a17");
-      bgGradient.addColorStop(1, "#0a1628");
+      bgGradient.addColorStop(0, "#051119");
+      bgGradient.addColorStop(1, "#0a1e2a");
     } else {
-      bgGradient.addColorStop(0, "#f0f9ff");
-      bgGradient.addColorStop(1, "#e0f2fe");
+      bgGradient.addColorStop(0, "#f2f9fa");
+      bgGradient.addColorStop(1, "#fdfcf5");
     }
     ctx.fillStyle = bgGradient;
     ctx.fillRect(0, 0, width, height);
 
+    // Official 4-color palette: #B1F0F7 (Aqua), #81BFDA (Ocean), #FADA7A (Amber), #F5F0CD (Cream)
     const waveColors = isDark
-      ? ["rgba(14, 165, 233, 0.25)", "rgba(56, 189, 248, 0.2)", "rgba(2, 132, 199, 0.15)", "rgba(16, 185, 129, 0.1)"]
-      : ["rgba(14, 165, 233, 0.2)", "rgba(56, 189, 248, 0.25)", "rgba(2, 132, 199, 0.15)", "rgba(56, 189, 248, 0.1)"];
+      ? ["rgba(177, 240, 247, 0.25)", "rgba(129, 191, 218, 0.20)", "rgba(250, 218, 122, 0.15)", "rgba(245, 240, 205, 0.12)"]
+      : ["rgba(177, 240, 247, 0.45)", "rgba(129, 191, 218, 0.35)", "rgba(250, 218, 122, 0.22)", "rgba(245, 240, 205, 0.28)"];
+
 
     for (let layer = 0; layer < 4; layer++) {
       ctx.beginPath();
@@ -306,11 +252,11 @@ function initMap() {
 
   const bounds = [[5.0, 45.0], [30.0, 105.0]];
   L.rectangle(bounds, {
-    color: "#38bdf8",
+    color: "#81BFDA",
     weight: 2,
     dashArray: "6, 6",
-    fillColor: "#38bdf8",
-    fillOpacity: 0.08
+    fillColor: "#B1F0F7",
+    fillOpacity: 0.12
   }).addTo(map);
 
   marker = L.marker([15.0, 65.0], { draggable: true }).addTo(map);
@@ -455,12 +401,12 @@ function initChart() {
         {
           label: "OceanEmbedNet Prediction (°C)",
           data: [],
-          borderColor: "#0284c7",
-          backgroundColor: "rgba(2, 132, 199, 0.10)",
+          borderColor: "#81BFDA",
+          backgroundColor: "rgba(129, 191, 218, 0.25)",
           fill: false,
           borderWidth: 3,
           pointRadius: 4,
-          pointBackgroundColor: "#0284c7",
+          pointBackgroundColor: "#81BFDA",
           tension: 0.35,
           order: 2
         },
@@ -479,13 +425,13 @@ function initChart() {
         {
           label: "INCOIS ARGO In-Situ (°C)",
           data: [],
-          borderColor: "#f59e0b",
-          backgroundColor: "rgba(245, 158, 11, 0.08)",
+          borderColor: "#FADA7A",
+          backgroundColor: "rgba(250, 218, 122, 0.15)",
           borderDash: [5, 4],
           borderWidth: 2.5,
           pointRadius: 5,
           pointHoverRadius: 7,
-          pointBackgroundColor: "#f59e0b",
+          pointBackgroundColor: "#FADA7A",
           pointBorderColor: "#ffffff",
           pointBorderWidth: 1.5,
           fill: false,
@@ -496,7 +442,7 @@ function initChart() {
           label: "Confidence Upper (+1σ)",
           data: [],
           borderColor: "transparent",
-          backgroundColor: "rgba(2, 132, 199, 0.14)",
+          backgroundColor: "rgba(177, 240, 247, 0.25)",
           fill: "+1",
           pointRadius: 0,
           tension: 0.35,
@@ -622,8 +568,8 @@ function updateProfileChartData() {
 
     profileChart.data.datasets[0].label = "OceanEmbedNet Prediction (°C)";
     profileChart.data.datasets[0].data = temps;
-    profileChart.data.datasets[0].borderColor = "#0284c7";
-    profileChart.data.datasets[0].pointBackgroundColor = "#0284c7";
+    profileChart.data.datasets[0].borderColor = "#81BFDA";
+    profileChart.data.datasets[0].pointBackgroundColor = "#81BFDA";
 
     const hasTruth = glorysTruth.some(v => v !== null);
     if (hasTruth) {
@@ -653,8 +599,8 @@ function updateProfileChartData() {
 
     profileChart.data.datasets[0].label = "Mackenzie Sound Speed (m/s)";
     profileChart.data.datasets[0].data = svpSpeeds;
-    profileChart.data.datasets[0].borderColor = "#38bdf8";
-    profileChart.data.datasets[0].pointBackgroundColor = "#38bdf8";
+    profileChart.data.datasets[0].borderColor = "#B1F0F7";
+    profileChart.data.datasets[0].pointBackgroundColor = "#B1F0F7";
 
     profileChart.data.datasets[1].data = [];
     profileChart.data.datasets[1].hidden = true;
