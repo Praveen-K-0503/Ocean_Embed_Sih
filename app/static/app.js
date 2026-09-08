@@ -10,10 +10,23 @@ initTheme();
 
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
-  showPage("home-page");
-  // Pre-load dates & metrics in background so dashboard is instant
-  loadDates();
-  loadMetrics();
+  initInteractiveLogin();
+  initOceanCanvasWave();
+
+  const isLoggedIn = sessionStorage.getItem("ocean_logged_in") === "true";
+  const loginScreen = document.getElementById("login-screen");
+  const appScreen = document.getElementById("app-screen");
+
+  if (isLoggedIn) {
+    if (loginScreen) loginScreen.classList.add("hidden");
+    if (appScreen) appScreen.classList.remove("hidden");
+    showPage("home-page");
+    loadDates();
+    loadMetrics();
+  } else {
+    if (loginScreen) loginScreen.classList.remove("hidden");
+    if (appScreen) appScreen.classList.add("hidden");
+  }
 });
 
 
@@ -190,8 +203,11 @@ function handleLogout() {
 }
 
 function showDashboard() {
-  document.getElementById("login-screen").classList.add("hidden");
-  document.getElementById("app-screen").classList.remove("hidden");
+  const loginScreen = document.getElementById("login-screen");
+  const appScreen = document.getElementById("app-screen");
+  if (loginScreen) loginScreen.classList.add("hidden");
+  if (appScreen) appScreen.classList.remove("hidden");
+  showPage("home-page");
 
   if (!isMapInitialized) {
     initMap();
@@ -201,7 +217,7 @@ function showDashboard() {
     loadArgoValidation(false);
     isMapInitialized = true;
   } else {
-    setTimeout(() => { map.invalidateSize(); }, 200);
+    setTimeout(() => { if (map) map.invalidateSize(); }, 200);
   }
 }
 

@@ -22,9 +22,94 @@
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
+  <!-- Screen 1: Interactive Ocean Login Gateway -->
+  <div id="login-screen">
+    <!-- 3D Spline Interactive Ocean Waves Background + Canvas Fallback -->
+    <div class="spline-container">
+      <iframe id="spline-iframe" src="https://my.spline.design/ocean-v65TrYXSTK6XDNjAxmYKTf31/" frameborder="0" width="100%" height="100%" allow="autoplay; fullscreen"></iframe>
+      <div class="ocean-canvas-container">
+        <canvas id="ocean-wave-canvas"></canvas>
+        <div class="ocean-depth-gradient"></div>
+      </div>
+    </div>
+
+    <!-- Glassmorphism Login Card with Left Hero & Mouse Tracking -->
+    <div class="login-card-wrapper">
+      <!-- Left Side Hero Section -->
+      <div class="login-hero-left">
+        <h1 class="hero-title">
+          <span class="cursive-hero-sub">Subsurface Ocean</span>
+          <span class="hero-main-text">3D Intelligence Platform</span>
+        </h1>
+        <p class="hero-description cursive-hero-desc">
+          Reconstructing deep ocean thermal profiles down to 1000m depth using 7-channel satellite observations (SST, SSS, SLA, ocean currents, surface winds) and deep OceanEmbedNet architecture.
+        </p>
+
+        <div class="hero-stats-grid">
+          <div class="hero-stat-card">
+            <i class="fa-solid fa-layer-group stat-icon"></i>
+            <div class="stat-info">
+              <span class="stat-value">0 - 1000m</span>
+              <span class="stat-label cursive-stat">Depth Resolution</span>
+            </div>
+          </div>
+
+          <div class="hero-stat-card">
+            <i class="fa-solid fa-bullseye stat-icon"></i>
+            <div class="stat-info">
+              <span class="stat-value">0.797°C</span>
+              <span class="stat-label cursive-stat">ARGO RMSE</span>
+            </div>
+          </div>
+
+          <div class="hero-stat-card">
+            <i class="fa-solid fa-calendar-day stat-icon"></i>
+            <div class="stat-info">
+              <span class="stat-value">0.25° Daily</span>
+              <span class="stat-label cursive-stat">Cadence &amp; Grid</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Side Login Form Card -->
+      <div class="login-card" id="interactive-login-card">
+        <div class="login-brand">
+          <div class="login-logo-glow"></div>
+          <h1 class="cursive-welcome">Welcome to</h1>
+          <h2 class="stylish-brand-title">Ocean<span class="brand-accent">Embed</span></h2>
+          <p class="login-subtitle">Deep OceanEmbedNet 3D Ocean Intelligence</p>
+          <p class="cursive-tagline">"Bridging Satellite Surface Data to 1000m Deep Ocean Physics"</p>
+        </div>
+
+        <form id="login-form" onsubmit="handleLogin(event)">
+          <div class="input-group">
+            <label><i class="fa-solid fa-user"></i> Username / Operator ID</label>
+            <input type="text" id="login-username" value="admin" placeholder="Enter username" required>
+          </div>
+
+          <div class="input-group">
+            <label><i class="fa-solid fa-key"></i> Access Key</label>
+            <input type="password" id="login-password" value="••••••••" placeholder="Enter password" required>
+          </div>
+
+          <div class="login-actions">
+            <button type="submit" class="btn-login" id="btn-login-interactive">
+              <span class="btn-text"><i class="fa-solid fa-shield-halved"></i> Launch Platform</span>
+              <span class="btn-ripple"></span>
+            </button>
+          </div>
+        </form>
+
+        <div class="login-footer-hint">
+          <span><i class="fa-solid fa-lock"></i> Secured Workstation Access</span>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Main Workstation App Container -->
-  <div id="app-screen">
+  <div id="app-screen" class="hidden">
     <div class="app-container">
       <!-- Market-Deployed Top Navigation Bar -->
       <header class="navbar">
@@ -69,6 +154,9 @@
             <span class="status-pulse-dot"></span>
             <span>Live 0.25°</span>
           </div>
+          <button class="nav-btn-logout" onclick="handleLogout()" title="Sign Out to Login Gateway">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out
+          </button>
         </div>
       </header>
 
@@ -85,11 +173,6 @@
         <div class="home-content-wrapper">
           <!-- Hero Section: Essentials Only -->
           <section class="home-hero-compact">
-            <div class="home-hero-badge">
-              <span class="pulse-dot"></span>
-              <span>MoES &amp; INCOIS · SIH 2026 Problem #26066</span>
-            </div>
-
             <h1 class="home-hero-headline">
               Deep 3D Subsurface Ocean Intelligence
             </h1>
