@@ -10,11 +10,10 @@ initTheme();
 
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
-  initOceanCanvasWave();
-  if (sessionStorage.getItem("ocean_logged_in") === "true") {
-    showDashboard();
-  }
-  initInteractiveLogin();
+  showPage("home-page");
+  // Pre-load dates & metrics in background so dashboard is instant
+  loadDates();
+  loadMetrics();
 });
 
 
@@ -211,13 +210,29 @@ function showPage(pageId) {
   document.querySelectorAll(".page-view").forEach(p => p.classList.add("hidden"));
   document.querySelectorAll(".nav-link").forEach(btn => btn.classList.remove("active"));
 
-  document.getElementById(pageId).classList.remove("hidden");
+  const target = document.getElementById(pageId);
+  if (target) target.classList.remove("hidden");
 
-  if (pageId === "dashboard-page") {
-    document.getElementById("nav-btn-dashboard").classList.add("active");
-    if (map) setTimeout(() => { map.invalidateSize(); }, 200);
+  if (pageId === "home-page") {
+    const btn = document.getElementById("nav-btn-home");
+    if (btn) btn.classList.add("active");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  } else if (pageId === "dashboard-page") {
+    const btn = document.getElementById("nav-btn-dashboard");
+    if (btn) btn.classList.add("active");
+    if (!isMapInitialized) {
+      initMap();
+      initChart();
+      loadDates();
+      loadMetrics();
+      loadArgoValidation(false);
+      isMapInitialized = true;
+    } else if (map) {
+      setTimeout(() => { map.invalidateSize(); }, 200);
+    }
   } else if (pageId === "studio-3d-page") {
-    document.getElementById("nav-btn-studio").classList.add("active");
+    const btn = document.getElementById("nav-btn-studio");
+    if (btn) btn.classList.add("active");
     // Synchronize dataset mode and date from dashboard
     const studioDs = document.getElementById("studio-dataset-mode");
     if (studioDs) studioDs.value = currentDatasetMode;
@@ -229,18 +244,46 @@ function showPage(pageId) {
     // Also sync coordinates
     const inLat = document.getElementById("input-lat")?.value;
     const inLon = document.getElementById("input-lon")?.value;
-    if (inLat) document.getElementById("studio-lat").value = inLat;
-    if (inLon) document.getElementById("studio-lon").value = inLon;
+    if (inLat && document.getElementById("studio-lat")) document.getElementById("studio-lat").value = inLat;
+    if (inLon && document.getElementById("studio-lon")) document.getElementById("studio-lon").value = inLon;
 
     renderStudio3D();
   } else if (pageId === "gnn-page") {
-    document.getElementById("nav-btn-gnn").classList.add("active");
+    const btn = document.getElementById("nav-btn-gnn");
+    if (btn) btn.classList.add("active");
     const dashDate = document.getElementById("select-date")?.value;
     const gnnDate = document.getElementById("gnn-date");
     if (dashDate && gnnDate && (!gnnDate.value || gnnDate.value !== dashDate)) {
       gnnDate.value = dashDate;
     }
     fetchGnnData();
+  }
+}
+
+/* Dashboard Tab Switcher */
+function switchTab(tabId, el) {
+  document.querySelectorAll(".tab-pane").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+
+  const targetPane = document.getElementById(tabId);
+  if (targetPane) targetPane.classList.add("active");
+
+  if (el) {
+    el.classList.add("active");
+  } else {
+    const btn = Array.from(document.querySelectorAll(".tab-btn")).find(b => b.getAttribute("onclick")?.includes(tabId));
+    if (btn) btn.classList.add("active");
+  }
+
+  if (tabId === "transect-tab") {
+    renderTransect();
+  } else if (tabId === "validation-tab") {
+    loadMetrics();
+    loadArgoValidation(false);
+  } else if (tabId === "embedding-tab") {
+    renderEmbeddings();
+  } else if (tabId === "agro-tab") {
+    loadAgroAnalytics();
   }
 }
 
