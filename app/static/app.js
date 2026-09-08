@@ -9,11 +9,68 @@ initTheme();
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
   initOceanCanvasWave();
+  initIntroVideo();
   if (sessionStorage.getItem("ocean_logged_in") === "true") {
     showDashboard();
+    dismissVideoIntro(true);
   }
   initInteractiveLogin();
 });
+
+/* ============================================================
+   Cinematic Video Intro Overlay Controls (In Front of Login)
+   ============================================================ */
+function initIntroVideo() {
+  const introVid = document.getElementById("intro-video-element");
+  const bgVid = document.getElementById("login-bg-video");
+
+  if (introVid) {
+    introVid.muted = true;
+    introVid.volume = 0;
+    introVid.play().catch(err => {
+      console.log("Intro video waiting for user interaction:", err);
+    });
+  }
+
+  if (bgVid) {
+    bgVid.muted = true;
+    bgVid.volume = 0;
+    bgVid.play().catch(() => {});
+  }
+}
+
+function dismissVideoIntro(instant = false) {
+  const overlay = document.getElementById("ocean-video-intro-overlay");
+  if (!overlay) return;
+  if (instant) {
+    overlay.style.display = "none";
+  } else {
+    overlay.classList.add("dismissed");
+    setTimeout(() => {
+      overlay.style.display = "none";
+    }, 750);
+  }
+  const bgVid = document.getElementById("login-bg-video");
+  if (bgVid && bgVid.paused) {
+    bgVid.muted = true;
+    bgVid.play().catch(() => {});
+  }
+}
+
+function showVideoIntro() {
+  const overlay = document.getElementById("ocean-video-intro-overlay");
+  const introVid = document.getElementById("intro-video-element");
+  if (overlay) {
+    overlay.style.display = "flex";
+    overlay.classList.remove("dismissed");
+    if (introVid) {
+      introVid.currentTime = 0;
+      introVid.muted = true;
+      introVid.play().catch(() => {});
+    }
+  }
+}
+
 
 /* Fast 60FPS HTML5 Canvas Ocean Wave Renderer */
 function initOceanCanvasWave() {
