@@ -23,6 +23,39 @@
 </head>
 <body>
 
+  <!-- Screen 0: Cinematic Video Intro in Front of Login Screen -->
+  <div id="ocean-video-intro-overlay">
+    <div class="video-intro-bg-ambient"></div>
+    <div class="video-intro-wrapper">
+      <div class="video-intro-header">
+        <span class="video-intro-badge"><i class="fa-solid fa-water"></i> Ministry of Earth Sciences (MoES) / INCOIS PS 26066</span>
+        <button class="btn-skip-intro" onclick="dismissVideoIntro()" title="Skip into platform">
+          Skip Intro <i class="fa-solid fa-forward-step"></i>
+        </button>
+      </div>
+
+      <div class="video-player-frame">
+        <video id="intro-video-element" autoplay muted loop playsinline preload="auto">
+          <source src="/static/assets/ocean_embed_intro.mp4" type="video/mp4">
+          <source src="https://media.pixverse.ai/pixverse%2Fmp4%2Fmedia%2Fweb%2Fori%2Fcad68f18-53d8-46b0-8330-9097594d8deb_seed1493697174.mp4" type="video/mp4">
+        </video>
+      </div>
+
+      <div class="video-intro-footer">
+        <div class="video-intro-meta">
+          <h2 class="video-intro-title">OCEAN EMBED</h2>
+          <p class="video-intro-desc">3D Subsurface Ocean Intelligence &amp; Thermal Profile Reconstruction</p>
+        </div>
+        <div class="video-intro-actions">
+          <button class="btn-enter-platform" onclick="dismissVideoIntro()">
+            <span>Enter Intelligence Platform</span>
+            <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Screen 1: Luxury 3D Spline Login Gateway -->
   <div id="login-screen">
     <!-- Theme Toggle on Login Screen -->
@@ -30,9 +63,18 @@
       <i class="fa-solid fa-moon" id="login-theme-icon"></i>
     </button>
 
-    <!-- 3D Spline Interactive Ocean Waves Background + Canvas Fallback -->
+    <!-- Replay Intro Video Button -->
+    <button class="login-replay-intro-btn" onclick="showVideoIntro()" title="Play OceanEmbed Cinematic Video Intro">
+      <i class="fa-solid fa-play"></i> Watch Intro Video
+    </button>
+
+    <!-- 3D Ocean Video Background + Canvas Fallback -->
     <div class="spline-container">
-      <iframe id="spline-iframe" src="https://my.spline.design/ocean-v65TrYXSTK6XDNjAxmYKTf31/" frameborder="0" width="100%" height="100%" allow="autoplay; fullscreen"></iframe>
+      <video id="login-bg-video" autoplay muted loop playsinline class="login-video-background">
+        <source src="/static/assets/ocean_embed_intro.mp4" type="video/mp4">
+        <source src="https://media.pixverse.ai/pixverse%2Fmp4%2Fmedia%2Fweb%2Fori%2Fcad68f18-53d8-46b0-8330-9097594d8deb_seed1493697174.mp4" type="video/mp4">
+      </video>
+      <div class="video-overlay-gradient"></div>
       <div class="ocean-canvas-container">
         <canvas id="ocean-wave-canvas"></canvas>
         <div class="ocean-depth-gradient"></div>
@@ -41,6 +83,7 @@
 
     <!-- Glassmorphism Login Card with Left Hero & Mouse Tracking -->
     <div class="login-card-wrapper">
+
 
       <!-- Left Side Hero Section -->
       <div class="login-hero-left">
