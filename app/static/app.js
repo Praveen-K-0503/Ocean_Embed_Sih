@@ -142,6 +142,12 @@ function applyTheme(theme) {
     renderEmbeddings();
   }
 
+  const transectTab = document.getElementById("transect-tab");
+  if (transectTab && transectTab.classList.contains("active") && typeof lastTransectPayload !== "undefined" && lastTransectPayload) {
+    drawTransectPlot(lastTransectPayload);
+  }
+
+
   const studioPage = document.getElementById("studio-3d-page");
   if (studioPage && !studioPage.classList.contains("hidden")) {
     renderStudio3D();
@@ -1019,17 +1025,49 @@ function onTransectSlide(val) {
   sliderDebounceTimer = setTimeout(() => renderTransect(val), 300);
 }
 
+let showTransectD20 = true;
+let showTransectTable = false;
+let lastTransectPayload = null;
+
+function toggleTransectD20() {
+  showTransectD20 = !showTransectD20;
+  const btn = document.getElementById("btn-toggle-transect-d20");
+  if (btn) {
+    btn.classList.toggle("active", showTransectD20);
+    btn.innerHTML = `<i class="fa-solid fa-water"></i> D20 Line: ${showTransectD20 ? 'ON' : 'OFF'}`;
+  }
+  if (lastTransectPayload) {
+    drawTransectPlot(lastTransectPayload);
+  }
+}
+
+function toggleTransectTable() {
+  showTransectTable = !showTransectTable;
+  const btn = document.getElementById("btn-toggle-transect-table");
+  const wrapper = document.getElementById("transect-table-wrapper");
+  if (btn) {
+    btn.classList.toggle("active", showTransectTable);
+  }
+  if (wrapper) {
+    wrapper.style.display = showTransectTable ? "block" : "none";
+  }
+  if (showTransectTable && lastTransectPayload) {
+    populateTransectTable(lastTransectPayload);
+  }
+}
+
 /* Render High-Resolution 2D Depth Section Heatmap in Dashboard Tab */
 async function renderTransect(overrideVal) {
-  const axis = document.getElementById("transect-axis").value;
+  const axisEl = document.getElementById("transect-axis");
+  const axis = axisEl ? axisEl.value : "lat";
 
   // Priority: overrideVal (from slider) > current input-lat/lon
   let fixedVal;
   if (overrideVal !== undefined) {
     fixedVal = overrideVal;
   } else {
-    const lat = document.getElementById("input-lat").value;
-    const lon = document.getElementById("input-lon").value;
+    const lat = document.getElementById("input-lat") ? document.getElementById("input-lat").value : 15;
+    const lon = document.getElementById("input-lon") ? document.getElementById("input-lon").value : 65;
     fixedVal = (axis === "lat") ? lat : lon;
     // Sync slider to current position
     const slider = document.getElementById("transect-slider");
@@ -1039,77 +1077,225 @@ async function renderTransect(overrideVal) {
     if (el) el.textContent = parseFloat(fixedVal).toFixed(2) + unit;
   }
 
-  document.getElementById("transect-location-label").textContent =
-    (axis === "lat") ? `Latitude ${parseFloat(fixedVal).toFixed(2)}°N` : `Longitude ${parseFloat(fixedVal).toFixed(2)}°E`;
+  const locLabel = document.getElementById("transect-location-label");
+  if (locLabel) {
+    locLabel.textContent =
+      (axis === "lat") ? `Latitude ${parseFloat(fixedVal).toFixed(2)}°N` : `Longitude ${parseFloat(fixedVal).toFixed(2)}°E`;
+  }
 
   try {
     const selectedDate = document.getElementById("select-date") ? document.getElementById("select-date").value : "";
     const res = await fetch(`/api/transect?fixed_val=${fixedVal}&axis=${axis}${selectedDate ? "&date=" + selectedDate : ""}`);
-
     const data = await res.json();
-    const container = document.getElementById("transect-view");
+    lastTransectPayload = data;
 
-    // Temperature color interpolation: cold (blue) → warm (red)
-    function tempToColor(val) {
-      if (val === null || val === undefined) return { bg: "rgba(255,255,255,0.04)", text: "#475569", display: "-" };
-      // North Indian Ocean range ~4°C (deep) to ~30°C (surface)
-      const lo = 4, hi = 30;
-      const t = Math.max(0, Math.min(1, (val - lo) / (hi - lo)));
-      // Blue(cold) → Cyan → Green → Yellow → Orange → Red(warm)
-      let r, g, b;
-      if (t < 0.25) {
-        const s = t / 0.25;
-        r = Math.round(0 + s * 0);       g = Math.round(100 + s * 155); b = Math.round(200 + s * 55);
-      } else if (t < 0.5) {
-        const s = (t - 0.25) / 0.25;
-        r = Math.round(0 + s * 100);     g = Math.round(200 + s * 55);  b = Math.round(200 - s * 200);
-      } else if (t < 0.75) {
-        const s = (t - 0.5) / 0.25;
-        r = Math.round(100 + s * 155);   g = Math.round(220 - s * 50);  b = Math.round(0);
-      } else {
-        const s = (t - 0.75) / 0.25;
-        r = Math.round(220 + s * 35);    g = Math.round(170 - s * 130); b = Math.round(0);
-      }
-      const textColor = t > 0.55 ? "#fff" : "#0f172a";
-      return { bg: `rgb(${r},${g},${b})`, text: textColor, display: val.toFixed(1) };
+    drawTransectPlot(data);
+    if (showTransectTable) {
+      populateTransectTable(data);
     }
-
-    // Decide which coords to show (subsample if too many columns)
-    const coords = data.coordinates;
-    const depths = data.depths;
-    const matrix = data.temperature_matrix; // [depth_idx][coord_idx]
-
-    // Show every 2nd column if >40 coords to keep table readable
-    const step = coords.length > 40 ? 2 : 1;
-    const showCols = coords.filter((_, i) => i % step === 0);
-    const showColIdxs = coords.map((_, i) => i).filter(i => i % step === 0);
-
-    const axisLabel = (axis === "lat") ? "°E" : "°N";
-
-    // Build table HTML
-    let html = `<table class="transect-table"><thead><tr>
-      <th class="depth-col">Depth (m)</th>
-      ${showCols.map(c => `<th>${parseFloat(c).toFixed(1)}${axisLabel}</th>`).join("")}
-    </tr></thead><tbody>`;
-
-    depths.forEach((depth, d_idx) => {
-      const row = matrix[d_idx];
-      html += `<tr><td class="depth-label">${depth}m</td>`;
-      showColIdxs.forEach(c_idx => {
-        const val = row ? row[c_idx] : null;
-        const col = tempToColor(val);
-        html += `<td style="background:${col.bg}; color:${col.text};">${col.display}</td>`;
-      });
-      html += `</tr>`;
-    });
-
-    html += `</tbody></table>`;
-    container.innerHTML = html;
-
   } catch (err) {
-    console.error("Error rendering transect table:", err);
+    console.error("Error rendering transect:", err);
   }
 }
+
+function drawTransectPlot(data) {
+  const plotDiv = document.getElementById("transect-plot");
+  if (!plotDiv || !window.Plotly) return;
+
+  const modeEl = document.getElementById("transect-mode");
+  const mode = modeEl ? modeEl.value : "pred";
+  const axis = data.axis || document.getElementById("transect-axis").value;
+
+  let activeMatrix;
+  let colorscale;
+  let titleStr;
+  let colorbarTitle;
+  let zmin, zmax;
+
+  if (mode === "truth") {
+    activeMatrix = data.truth_curtain || data.predicted_curtain;
+    titleStr = "GLORYS12V1 Reference Ground Truth Curtain";
+    colorbarTitle = "Temp (°C)";
+    zmin = 4.0; zmax = 32.0;
+    colorscale = [
+      [0.00, "#03045e"],
+      [0.15, "#023e8a"],
+      [0.30, "#0077b6"],
+      [0.45, "#0096c7"],
+      [0.60, "#00e676"],
+      [0.72, "#ffd166"],
+      [0.85, "#f77f00"],
+      [1.00, "#d62828"]
+    ];
+  } else if (mode === "diff") {
+    activeMatrix = data.error_curtain || [];
+    titleStr = "Reconstruction Bias (|OceanEmbed - GLORYS|)";
+    colorbarTitle = "|ΔT| (°C)";
+    zmin = 0.0; zmax = 3.5;
+    colorscale = [
+      [0.00, "#f8fafc"],
+      [0.20, "#fed7aa"],
+      [0.45, "#fb923c"],
+      [0.70, "#ef4444"],
+      [1.00, "#7f1d1d"]
+    ];
+  } else {
+    activeMatrix = data.predicted_curtain || data.temperature_matrix;
+    titleStr = "OceanEmbed AI Deep Subsurface Reconstruction";
+    colorbarTitle = "Temp (°C)";
+    zmin = 4.0; zmax = 32.0;
+    colorscale = [
+      [0.00, "#03045e"],
+      [0.15, "#023e8a"],
+      [0.30, "#0077b6"],
+      [0.45, "#0096c7"],
+      [0.60, "#00e676"],
+      [0.72, "#ffd166"],
+      [0.85, "#f77f00"],
+      [1.00, "#d62828"]
+    ];
+  }
+
+  const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+  const fontColor = isDark ? "#e2e8f0" : "#1e293b";
+  const gridColor = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)";
+  const plotBg = isDark ? "#0f172a" : "#ffffff";
+
+  const traces = [];
+
+  // 1. Heatmap Trace
+  traces.push({
+    x: data.coordinates,
+    y: data.depths,
+    z: activeMatrix,
+    type: "heatmap",
+    zsmooth: "best",
+    colorscale: colorscale,
+    zmin: zmin,
+    zmax: zmax,
+    colorbar: {
+      title: { text: colorbarTitle, font: { color: fontColor, size: 11 } },
+      len: 0.92,
+      thickness: 14,
+      tickfont: { color: fontColor, size: 10 }
+    },
+    hovertemplate: `<b>Depth:</b> %{y}m<br><b>${axis === 'lat' ? 'Longitude' : 'Latitude'}:</b> %{x:.2f}°${axis === 'lat' ? 'E' : 'N'}<br><b>${colorbarTitle}:</b> %{z:.2f} °C<extra></extra>`
+  });
+
+  // 2. D20 Thermocline overlay line
+  if (showTransectD20 && data.d20_isotherm && mode !== "diff") {
+    traces.push({
+      x: data.coordinates,
+      y: data.d20_isotherm,
+      type: "scatter",
+      mode: "lines",
+      name: "20°C Thermocline (D20)",
+      line: { color: "#ffffff", width: 2.5, dash: "dash" },
+      hovertemplate: "<b>D20 Thermocline:</b> %{y:.1f}m<extra></extra>"
+    });
+  }
+
+  const layout = {
+    title: {
+      text: `<b>${titleStr}</b> — ${data.fixed_location || ''} (${data.date || ''})`,
+      font: { color: fontColor, size: 12 },
+      x: 0.02,
+      xanchor: "left"
+    },
+    autosize: true,
+    height: 380,
+    margin: { l: 65, r: 40, t: 36, b: 48 },
+    paper_bgcolor: "transparent",
+    plot_bgcolor: plotBg,
+    xaxis: {
+      title: { text: axis === "lat" ? "Longitude across North Indian Ocean (°E)" : "Latitude across North Indian Ocean (°N)", font: { color: fontColor, size: 11 } },
+      tickfont: { color: fontColor, size: 10 },
+      gridcolor: gridColor,
+      zeroline: false
+    },
+    yaxis: {
+      autorange: "reversed",
+      title: { text: "Standard Depth (m)", font: { color: fontColor, size: 11 } },
+      tickfont: { color: fontColor, size: 10 },
+      gridcolor: gridColor,
+      tickmode: "array",
+      tickvals: [0, 50, 100, 200, 300, 500, 700, 1000],
+      ticktext: ["0m", "50m", "100m", "200m", "300m", "500m", "700m", "1000m"]
+    },
+    legend: {
+      orientation: "h",
+      y: 1.12,
+      x: 0.65,
+      font: { color: fontColor, size: 10 }
+    }
+  };
+
+  const config = {
+    responsive: true,
+    displayModeBar: true,
+    displaylogo: false,
+    modeBarButtonsToRemove: ["lasso2d", "select2d"]
+  };
+
+  Plotly.react(plotDiv, traces, layout, config);
+}
+
+function populateTransectTable(data) {
+  const container = document.getElementById("transect-table-wrapper");
+  if (!container) return;
+
+  function tempToColor(val) {
+    if (val === null || val === undefined) return { bg: "rgba(255,255,255,0.04)", text: "#475569", display: "-" };
+    const lo = 4, hi = 30;
+    const t = Math.max(0, Math.min(1, (val - lo) / (hi - lo)));
+    let r, g, b;
+    if (t < 0.25) {
+      const s = t / 0.25;
+      r = Math.round(0 + s * 0);       g = Math.round(100 + s * 155); b = Math.round(200 + s * 55);
+    } else if (t < 0.5) {
+      const s = (t - 0.25) / 0.25;
+      r = Math.round(0 + s * 100);     g = Math.round(200 + s * 55);  b = Math.round(200 - s * 200);
+    } else if (t < 0.75) {
+      const s = (t - 0.5) / 0.25;
+      r = Math.round(100 + s * 155);   g = Math.round(220 - s * 50);  b = Math.round(0);
+    } else {
+      const s = (t - 0.75) / 0.25;
+      r = Math.round(220 + s * 35);    g = Math.round(170 - s * 130); b = Math.round(0);
+    }
+    const textColor = t > 0.55 ? "#fff" : "#0f172a";
+    return { bg: `rgb(${r},${g},${b})`, text: textColor, display: val.toFixed(1) };
+  }
+
+  const coords = data.coordinates || [];
+  const depths = data.depths || [];
+  const matrix = data.predicted_curtain || data.temperature_matrix || [];
+  const axis = data.axis || document.getElementById("transect-axis").value;
+  const axisLabel = (axis === "lat") ? "°E" : "°N";
+
+  const step = coords.length > 40 ? 2 : 1;
+  const showCols = coords.filter((_, i) => i % step === 0);
+  const showColIdxs = coords.map((_, i) => i).filter(i => i % step === 0);
+
+  let html = `<table class="transect-table"><thead><tr>
+    <th class="depth-col">Depth (m)</th>
+    ${showCols.map(c => `<th>${parseFloat(c).toFixed(1)}${axisLabel}</th>`).join("")}
+  </tr></thead><tbody>`;
+
+  depths.forEach((depth, d_idx) => {
+    const row = matrix[d_idx];
+    html += `<tr><td class="depth-label">${depth}m</td>`;
+    showColIdxs.forEach(c_idx => {
+      const val = row ? row[c_idx] : null;
+      const col = tempToColor(val);
+      html += `<td style="background:${col.bg}; color:${col.text};">${col.display}</td>`;
+    });
+    html += `</tr>`;
+  });
+
+  html += `</tbody></table>`;
+  container.innerHTML = html;
+}
+
 
 
 /* Sync date changed in 3D Studio back to main dashboard */
@@ -1839,6 +2025,10 @@ function switchTab(tabId, btnEl) {
       document.getElementById("slider-current-val").textContent = parseFloat(slider.value).toFixed(2) + "°E";
     }
     renderTransect();
+    setTimeout(() => {
+      const plotEl = document.getElementById("transect-plot");
+      if (plotEl && window.Plotly) Plotly.Plots.resize(plotEl);
+    }, 120);
   } else if (tabId === "validation-tab") {
     loadMetrics();
   } else if (tabId === "embedding-tab") {
