@@ -532,19 +532,6 @@
             <div class="studio-title">
               <h2><i class="fa-solid fa-cube"></i> 3D Volumetric Studio</h2>
             </div>
-            <div class="studio-header-actions">
-              <div class="studio-view-toggle-group">
-                <button class="btn-studio-view active" id="btn-view-dual" onclick="setStudioViewMode('dual')" title="Integrated View: Original Leaflet Map + 3D Volumetric Studio">
-                  <i class="fa-solid fa-table-columns"></i> Dual: Leaflet Map + 3D Studio
-                </button>
-                <button class="btn-studio-view" id="btn-view-3d" onclick="setStudioViewMode('3d')" title="3D Volumetric Reconstruction Only">
-                  <i class="fa-solid fa-cube"></i> 3D Reconstruction Only
-                </button>
-                <button class="btn-studio-view" id="btn-view-map" onclick="setStudioViewMode('map')" title="Original Leaflet Satellite Map Only">
-                  <i class="fa-solid fa-map-location-dot"></i> Original Leaflet Map Only
-                </button>
-              </div>
-            </div>
           </div>
 
           <!-- Studio Controls Row -->
@@ -559,6 +546,13 @@
               <label><i class="fa-solid fa-calendar-days"></i> Observation Date</label>
               <select id="studio-date" onchange="syncDateFromStudio(this.value)">
                 <!-- Populated from API -->
+              </select>
+            </div>
+            <div class="studio-control-item">
+              <label><i class="fa-solid fa-earth-asia"></i> Top Face Texture</label>
+              <select id="studio-top-texture" onchange="renderStudio3D()">
+                <option value="satellite" selected>Real Satellite Map (Esri/Leaflet Imagery)</option>
+                <option value="sst">Continuous SST Thermal Field</option>
               </select>
             </div>
             <div class="studio-control-item">
@@ -617,8 +611,8 @@
             <button class="btn-studio-chip" onclick="jumpStudioRegion(13.5, 95.5, 'Andaman Sea')">Andaman Sea (13.5°N, 95.5°E)</button>
           </div>
 
-          <!-- Studio Body: left stats + center Leaflet map + right 3D canvas -->
-          <div class="studio-body-flex view-dual" id="studio-body-flex">
+          <!-- Studio Body: left stats + full-width 3D canvas -->
+          <div class="studio-body-flex" id="studio-body-flex">
             <!-- Left: Key metrics & Problem Statement Specifications -->
             <div class="studio-stats-sidebar">
               <div class="studio-stat-block">
@@ -664,15 +658,6 @@
                 <div class="depth-layer"><span class="dl-col" style="background:#0284c7"></span><span>150–500m Intermediate</span></div>
                 <div class="depth-layer"><span class="dl-col" style="background:#1e3a5f"></span><span>500–1000m Deep Ocean</span></div>
               </div>
-            </div>
-
-            <!-- Integrated Original Leaflet Satellite Observation Map -->
-            <div class="studio-map-wrapper" id="studio-map-wrapper">
-              <div class="studio-map-header">
-                <span class="smh-title"><i class="fa-solid fa-satellite"></i> Original Leaflet Satellite Map</span>
-                <span class="smh-badge"><i class="fa-solid fa-crosshairs"></i> Drag Marker / Click to Reconstruct 3D</span>
-              </div>
-              <div id="studio-ocean-map" style="width:100%; height:calc(100% - 38px);"></div>
             </div>
 
             <!-- Fullscreen Interactive 3D Plotly Volumetric Canvas -->
