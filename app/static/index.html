@@ -170,6 +170,39 @@
           <div class="home-video-overlay"></div>
         </div>
 
+        <!-- Custom Elegant Header for Home Page (Replaces Navbar on Home View) -->
+        <header class="home-custom-header">
+          <div class="hch-brand" onclick="showPage('home-page')">
+            <div class="hch-logo-badge"><i class="fa-solid fa-water"></i></div>
+            <div class="hch-brand-text">
+              <span class="hch-title">Ocean<span class="brand-accent">Embed</span></span>
+              <span class="hch-subtitle">INCOIS · 3D Ocean Intelligence</span>
+            </div>
+          </div>
+
+          <nav class="hch-nav-links">
+            <button class="hch-nav-btn" onclick="showPage('dashboard-page')">
+              <i class="fa-solid fa-gauge-high"></i> Dashboard
+            </button>
+            <button class="hch-nav-btn" onclick="showPage('studio-3d-page')">
+              <i class="fa-solid fa-cube"></i> 3D Studio
+            </button>
+            <button class="hch-nav-btn" onclick="showPage('gnn-page')">
+              <i class="fa-solid fa-diagram-project"></i> OceanGNN
+            </button>
+          </nav>
+
+          <div class="hch-right-group">
+            <div class="hch-status-pill" title="Live Hydrodynamic Basin Grid">
+              <span class="hch-status-dot"></span>
+              <span>Live 0.25°</span>
+            </div>
+            <button class="hch-btn-signout" onclick="handleLogout()" title="Sign Out to Login Gateway">
+              <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out
+            </button>
+          </div>
+        </header>
+
         <div class="home-content-wrapper">
           <!-- Hero Section: Essentials Only -->
           <section class="home-hero-compact">
@@ -223,9 +256,6 @@
               </button>
               <button class="btn-hero-outline" onclick="showPage('gnn-page')">
                 <i class="fa-solid fa-diagram-project"></i> OceanGNN Hydrodynamic Graph
-              </button>
-              <button class="btn-hero-signout-inline" onclick="handleLogout()" title="Sign Out of Session">
-                <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out
               </button>
             </div>
           </section>
