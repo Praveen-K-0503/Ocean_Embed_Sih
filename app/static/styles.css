@@ -5517,45 +5517,101 @@ select:focus {
   display: flex;
   gap: 16px;
   margin-bottom: 0 !important;
+  margin-top: 14px;
 }
 
 .summary-card {
   flex: 1;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(8px);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 16px;
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1.5px solid rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  padding: 14px 18px;
   display: flex;
   align-items: center;
-  gap: 16px;
-  box-shadow: var(--shadow-sm);
+  gap: 14px;
+  box-shadow: 0 4px 18px -2px rgba(0, 60, 140, 0.07), 0 2px 6px -1px rgba(0, 0, 0, 0.03);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 22px -2px rgba(0, 60, 140, 0.12), 0 3px 8px -1px rgba(0, 0, 0, 0.05);
 }
 
 .summary-icon {
-  width: 48px;
-  height: 48px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
-  background: #f0f9ff;
-  color: #0ea5e9;
+  background: radial-gradient(circle at 35% 35%, #ffffff 0%, #e0f2fe 65%, #bae6fd 100%);
+  border: 1px solid rgba(186, 230, 253, 0.9);
+  box-shadow: 0 3px 10px rgba(2, 132, 199, 0.12), inset 0 1px 2px rgba(255, 255, 255, 0.95);
+  color: #0284c7;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 22px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+}
+
+.summary-details {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 2;
 }
 
 .summary-details h4 {
-  font-size: 13px;
+  font-size: 14.5px;
   font-weight: 700;
-  color: #0f172a;
-  margin-bottom: 2px;
+  color: #0c3866;
+  margin: 0 0 2px 0;
+  letter-spacing: -0.2px;
 }
 
-.summary-details p {
-  font-size: 11px;
-  color: #475569;
-  line-height: 1.4;
+.summary-details .sc-val {
+  font-size: 12px;
+  font-weight: 500;
+  color: #334155;
+  line-height: 1.35;
+  display: block;
 }
+
+.summary-details .sc-desc {
+  font-size: 11px;
+  font-weight: 400;
+  color: #64748b;
+  line-height: 1.35;
+  display: block;
+}
+
+.summary-watermark {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 95px;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  overflow: hidden;
+}
+
+.summary-watermark svg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Summary cards maintain pristine light frosted glass aesthetic matching reference */
 
 /* Key Surface Observations Grid */
 .surface-obs-grid {
