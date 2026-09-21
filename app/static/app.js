@@ -319,6 +319,16 @@ function showPage(pageId) {
       }, 100);
       loadCyclonePreset(currentCycloneId || "biparjoy");
     }
+  } else if (pageId === "mhw-page") {
+    const btn = document.getElementById("nav-btn-mhw");
+    if (btn) btn.classList.add("active");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    setTimeout(() => { loadMhwAnalytics(); }, 50);
+  } else if (pageId === "agro-page") {
+    const btn = document.getElementById("nav-btn-agro");
+    if (btn) btn.classList.add("active");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    setTimeout(() => { loadAgroAnalytics(); }, 50);
   }
 }
 

@@ -16,7 +16,7 @@
 <!-- Chart.js & Plotly.js 3D -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
-<link href="/static/styles.css?v=225" rel="stylesheet"/>
+<link href="/static/styles.css?v=235" rel="stylesheet"/>
 </head>
 <body>
 <!-- Screen 1: Interactive Ocean Login Gateway -->
@@ -121,6 +121,12 @@
         </button>
 <button class="nav-link" id="nav-btn-cyclone" onclick="showPage('cyclone-page')">
 <i class="fa-solid fa-hurricane"></i> Cyclone Watch
+        </button>
+<button class="nav-link" id="nav-btn-mhw" onclick="showPage('mhw-page')">
+<i class="fa-solid fa-fire-flame-curved"></i> Marine Heatwave
+        </button>
+<button class="nav-link" id="nav-btn-agro" onclick="showPage('agro-page')">
+<i class="fa-solid fa-seedling"></i> Agro Analytics
         </button>
 </nav>
 <div class="nav-right">
@@ -462,8 +468,6 @@
 <button class="tab-btn" onclick="switchTab('transect-tab', this)"><i class="fa-solid fa-layer-group"></i> Ocean Depth Section</button>
 <button class="tab-btn" onclick="switchTab('validation-tab', this)"><i class="fa-solid fa-chart-bar"></i> Depth-Wise Validation</button>
 <button class="tab-btn" onclick="switchTab('embedding-tab', this)"><i class="fa-solid fa-brain"></i> OceanEmbedNet Embeddings</button>
-<button class="tab-btn" onclick="switchTab('mhw-tab', this)"><i class="fa-solid fa-fire-flame-curved"></i> Marine Heatwave Watch</button>
-<button class="tab-btn" onclick="switchTab('agro-tab', this)"><i class="fa-solid fa-seedling"></i> Agro Analytics</button>
 </div>
 <div class="header-action-buttons">
 <button class="btn-sm btn-primary-gradient" onclick="exportNetCDF()" title="Download INCOIS CF-1.6 Standardized NetCDF (15 depths × 101 × 241)"><i class="fa-solid fa-cloud-arrow-down"></i> CF-NetCDF (.nc)</button>
@@ -606,118 +610,6 @@
 <div class="heatmap-canvas" id="embedding-c2"></div>
 </div>
 </div>
-</div>
-<!-- Tab 5: Agro Analytics (SST Impact on Agriculture / Monsoon) -->
-<div class="tab-pane" id="agro-tab">
-<div class="agro-header">
-<div class="agro-title-row">
-<h4><i class="fa-solid fa-seedling"></i> Ocean-Agro Impact Analytics — North Indian Ocean Basin</h4>
-<span class="agro-badge">Synthetic Regional Analysis</span>
-</div>
-<p class="agro-subtitle">Sea Surface Temperature anomalies from the North Indian Ocean directly influence Indian monsoon onset, soil moisture patterns, and Kharif/Rabi crop yield forecasts across major agricultural zones.</p>
-</div>
-<!-- KPI Row -->
-<div class="agro-kpi-row">
-<div class="agro-kpi" id="agro-kpi-sst">
-<i class="fa-solid fa-temperature-high"></i>
-<div>
-<span class="agro-kpi-label">Basin SST Anomaly</span>
-<span class="agro-kpi-val" id="agro-sst-anomaly">+0.42 °C</span>
-</div>
-</div>
-<div class="agro-kpi" id="agro-kpi-monsoon">
-<i class="fa-solid fa-cloud-rain"></i>
-<div>
-<span class="agro-kpi-label">Monsoon Onset Shift</span>
-<span class="agro-kpi-val" id="agro-monsoon-shift">−2.3 days</span>
-</div>
-</div>
-<div class="agro-kpi" id="agro-kpi-ndvi">
-<i class="fa-solid fa-leaf"></i>
-<div>
-<span class="agro-kpi-label">Regional NDVI Index</span>
-<span class="agro-kpi-val" id="agro-ndvi">0.61</span>
-</div>
-</div>
-<div class="agro-kpi" id="agro-kpi-crop">
-<i class="fa-solid fa-wheat-awn"></i>
-<div>
-<span class="agro-kpi-label">Kharif Yield Forecast</span>
-<span class="agro-kpi-val" id="agro-yield">+3.1%</span>
-</div>
-</div>
-<div class="agro-kpi" id="agro-kpi-moisture">
-<i class="fa-solid fa-droplet"></i>
-<div>
-<span class="agro-kpi-label">Soil Moisture Index</span>
-<span class="agro-kpi-val" id="agro-moisture">0.74</span>
-</div>
-</div>
-</div>
-<!-- Charts Row -->
-<div class="agro-charts-grid">
-<div class="agro-chart-box">
-<h5><i class="fa-solid fa-temperature-arrow-up"></i> SST Anomaly vs Monsoon Rainfall (Monthly)</h5>
-<canvas id="agro-sst-monsoon-chart"></canvas>
-</div>
-<div class="agro-chart-box">
-<h5><i class="fa-solid fa-wheat-awn"></i> Crop Yield Impact Forecast by Zone</h5>
-<canvas id="agro-crop-yield-chart"></canvas>
-</div>
-<div class="agro-chart-box">
-<h5><i class="fa-solid fa-droplet"></i> Soil Moisture vs Ocean Heat Content</h5>
-<canvas id="agro-moisture-chart"></canvas>
-</div>
-<div class="agro-chart-box">
-<h5><i class="fa-solid fa-leaf"></i> NDVI Trend — Arabian Sea Coastal Zones</h5>
-<canvas id="agro-ndvi-chart"></canvas>
-</div>
-</div>
-<!-- Zone table -->
-<div class="agro-zone-table-wrap">
-<h5><i class="fa-solid fa-table"></i> Regional Agricultural Zone Impact Summary</h5>
-<table class="agro-zone-table">
-<thead>
-<tr>
-<th>Zone</th>
-<th>SST Anomaly (°C)</th>
-<th>Rainfall Deviation</th>
-<th>NDVI</th>
-<th>Yield Forecast</th>
-<th>Risk Level</th>
-</tr>
-</thead>
-<tbody id="agro-zone-tbody"></tbody>
-</table>
-</div>
-<!-- Tab 6: Marine Heatwave (MHW) & Subsurface Thermal Stress Watch (Theme: Disaster Management) -->
-<div class="tab-pane" id="mhw-tab">
-  <div class="mhw-container">
-    <div class="mhw-header-card">
-      <div class="mhw-hc-left">
-        <div class="mhw-badge"><i class="fa-solid fa-triangle-exclamation"></i> MOES · INCOIS DISASTER MANAGEMENT ADVISORY</div>
-        <h3 class="mhw-title">Subsurface Marine Heatwave &amp; Ecological Hazard Watch</h3>
-        <p class="mhw-sub">Real-time vertical heat penetration profiling and thermal bleaching threat monitoring across critical North Indian Ocean marine protected areas (Hobday et al. 2016 / INCOIS standard).</p>
-      </div>
-      <div class="mhw-kpi-summary">
-        <div class="mhw-kpi-pill">
-          <span class="mhw-kp-lbl">Max Heat Penetration</span>
-          <strong class="mhw-kp-val" id="mhw-max-pen">-- m</strong>
-          <span class="mhw-kp-sub">Thermal depth ≥ 28°C</span>
-        </div>
-        <div class="mhw-kpi-pill">
-          <span class="mhw-kp-lbl">Severe Risk Zones</span>
-          <strong class="mhw-kp-val" id="mhw-severe-count" style="color:#ef4444;">--</strong>
-          <span class="mhw-kp-sub">Cat III / IV Active</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Live Ecozone Grid -->
-    <div class="mhw-zones-grid" id="mhw-zones-container">
-      <!-- Dynamically populated via JS -->
-    </div>
-  </div>
 </div>
 </div>
 </div>
@@ -1318,6 +1210,199 @@
   </div>
 </div><!-- End cyclone-content-container -->
 </div>
+
+<!-- PAGE 5: Marine Heatwave (MHW) & Subsurface Ecological Stress Watch -->
+<div class="page-view hidden" id="mhw-page">
+  <!-- MHW Hero Region with Panoramic Ocean Seascape Background -->
+  <div class="mhw-hero-region">
+    <div class="mhw-hero-container">
+      <!-- Top Header Banner -->
+      <div class="mhw-header-banner">
+        <div class="mhw-hb-left">
+          <div class="mhw-hb-badge"><i class="fa-solid fa-fire-flame-curved"></i> MOES · INCOIS DISASTER MANAGEMENT INTELLIGENCE</div>
+          <h2 class="mhw-hb-title">Subsurface Marine Heatwave &amp; Ecological Hazard Watch</h2>
+          <p class="mhw-hb-subtitle">Vertical thermal penetration profiling (0–100m) and coral reef thermal stress alert across critical North Indian Ocean marine protected areas (Hobday et al. 2016 / INCOIS standard).</p>
+        </div>
+        <div class="mhw-kpi-summary">
+          <div class="mhw-kpi-pill">
+            <span class="mhw-kp-lbl">Max Heat Penetration</span>
+            <strong class="mhw-kp-val" id="mhw-max-pen">-- m</strong>
+            <span class="mhw-kp-sub">Thermal depth ≥ 28°C</span>
+          </div>
+          <div class="mhw-kpi-pill">
+            <span class="mhw-kp-lbl">Severe Risk Zones</span>
+            <strong class="mhw-kp-val" id="mhw-severe-count" style="color:#ef4444;">--</strong>
+            <span class="mhw-kp-sub">Cat III / IV Active</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Control Bar -->
+      <div class="mhw-control-strip">
+        <div class="mcs-left">
+          <span class="mcs-label"><i class="fa-solid fa-shield-virus"></i> Monitored Coral Reef Sanctuaries:</span>
+          <span class="mcs-tag">Lakshadweep Atolls</span>
+          <span class="mcs-tag">Gulf of Mannar Biosphere</span>
+          <span class="mcs-tag">Andaman &amp; Nicobar</span>
+          <span class="mcs-tag">Gulf of Kachchh Marine Park</span>
+        </div>
+        <button class="btn-sm btn-primary-gradient" onclick="exportNetCDF()"><i class="fa-solid fa-cloud-arrow-down"></i> Export CF-NetCDF (.nc)</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="mhw-content-container">
+    <!-- Live Ecozone Grid -->
+    <div class="mhw-zones-grid" id="mhw-zones-container">
+      <!-- Dynamically populated via JS -->
+    </div>
+
+    <!-- Educational & Advisory Framework Card -->
+    <div class="mhw-info-card">
+      <div class="mic-header">
+        <i class="fa-solid fa-circle-info"></i>
+        <strong>Why Subsurface Reconstruction is Essential for Marine Heatwave Disaster Management:</strong>
+      </div>
+      <p>Standard surface satellite observations (OSTIA SST) can only capture the skin temperature of the ocean. However, shallow stratification often masks or misrepresents deeper heat reservoirs. OceanEmbed reconstructs the vertical thermal structure from 0m down to 1000m, allowing INCOIS and MoES to detect whether lethal 29°C+ water penetrates deep into coral reef zones (causing permanent mass bleaching and pelagic fish mortality) or remains a harmless thin surface skin.</p>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 6: Ocean-Climate Teleconnections & Agro Analytics -->
+<div class="page-view hidden" id="agro-page">
+  <!-- Agro Hero Region with Panoramic Ocean Seascape Background -->
+  <div class="agro-hero-region">
+    <div class="agro-hero-container">
+      <!-- Top Header Banner -->
+      <div class="agro-header-banner">
+        <div class="agro-hb-left">
+          <div class="agro-hb-badge"><i class="fa-solid fa-seedling"></i> MOES · IITM · AGRO-CLIMATE TELECONNECTION SYSTEM</div>
+          <h2 class="agro-hb-title">Ocean-Agro Impact Analytics &amp; Monsoon Teleconnections</h2>
+          <p class="agro-hb-subtitle">Coupling North Indian Ocean Sea Surface Temperature (SST) and Upper Ocean Heat Content (OHC) anomalies with Indian monsoon onset dynamics, coastal soil moisture, and crop yield forecasts.</p>
+        </div>
+        <div class="agro-quick-badge">
+          <i class="fa-solid fa-satellite-dish"></i>
+          <span>Multi-Source Satellite Coupled: OSTIA SST · SMAP SSS · DUACS SSH</span>
+        </div>
+      </div>
+
+      <!-- KPI Row (5 Cards) -->
+      <div class="agro-kpi-grid">
+        <div class="agro-kpi-card" id="agro-kpi-sst">
+          <div class="ak-icon-disc" style="background:#fee2e2; color:#ef4444;"><i class="fa-solid fa-temperature-high"></i></div>
+          <div class="ak-details">
+            <span class="ak-lbl">Basin SST Anomaly</span>
+            <strong class="ak-val" id="agro-sst-anomaly">+0.42 °C</strong>
+            <span class="ak-sub">vs Climatology</span>
+          </div>
+        </div>
+
+        <div class="agro-kpi-card" id="agro-kpi-monsoon">
+          <div class="ak-icon-disc" style="background:#e0f2fe; color:#0284c7;"><i class="fa-solid fa-cloud-rain"></i></div>
+          <div class="ak-details">
+            <span class="ak-lbl">Monsoon Onset Shift</span>
+            <strong class="ak-val" id="agro-monsoon-shift">−2.3 days</strong>
+            <span class="ak-sub">Pre-monsoon lead time</span>
+          </div>
+        </div>
+
+        <div class="agro-kpi-card" id="agro-kpi-ndvi">
+          <div class="ak-icon-disc" style="background:#dcfce7; color:#16a34a;"><i class="fa-solid fa-leaf"></i></div>
+          <div class="ak-details">
+            <span class="ak-lbl">Regional NDVI Index</span>
+            <strong class="ak-val" id="agro-ndvi">0.610</strong>
+            <span class="ak-sub">Vegetation health proxy</span>
+          </div>
+        </div>
+
+        <div class="agro-kpi-card" id="agro-kpi-crop">
+          <div class="ak-icon-disc" style="background:#fef3c7; color:#d97706;"><i class="fa-solid fa-wheat-awn"></i></div>
+          <div class="ak-details">
+            <span class="ak-lbl">Kharif Yield Forecast</span>
+            <strong class="ak-val" id="agro-yield">+3.1%</strong>
+            <span class="ak-sub">Projected yield variance</span>
+          </div>
+        </div>
+
+        <div class="agro-kpi-card" id="agro-kpi-moisture">
+          <div class="ak-icon-disc" style="background:#f3e8ff; color:#9333ea;"><i class="fa-solid fa-droplet"></i></div>
+          <div class="ak-details">
+            <span class="ak-lbl">Soil Moisture Index</span>
+            <strong class="ak-val" id="agro-moisture">0.740</strong>
+            <span class="ak-sub">Root-zone hydration</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="agro-content-container">
+    <!-- Charts Row (4 Responsive Cards) -->
+    <div class="agro-charts-grid">
+      <div class="agro-chart-panel">
+        <div class="acp-header">
+          <span><i class="fa-solid fa-temperature-arrow-up"></i> SST Anomaly vs Monsoon Rainfall (Monthly)</span>
+          <span class="acp-sub">Dual Axis</span>
+        </div>
+        <div class="acp-canvas-wrap">
+          <canvas id="agro-sst-monsoon-chart"></canvas>
+        </div>
+      </div>
+
+      <div class="agro-chart-panel">
+        <div class="acp-header">
+          <span><i class="fa-solid fa-wheat-awn"></i> Crop Yield Impact Forecast by Zone</span>
+          <span class="acp-sub">% Deviation</span>
+        </div>
+        <div class="acp-canvas-wrap">
+          <canvas id="agro-crop-yield-chart"></canvas>
+        </div>
+      </div>
+
+      <div class="agro-chart-panel">
+        <div class="acp-header">
+          <span><i class="fa-solid fa-droplet"></i> Soil Moisture vs Ocean Heat Content (OHC)</span>
+          <span class="acp-sub">Teleconnection</span>
+        </div>
+        <div class="acp-canvas-wrap">
+          <canvas id="agro-moisture-chart"></canvas>
+        </div>
+      </div>
+
+      <div class="agro-chart-panel">
+        <div class="acp-header">
+          <span><i class="fa-solid fa-leaf"></i> Coastal NDVI Trend — Arabian Sea &amp; BoB</span>
+          <span class="acp-sub">Vegetation Index</span>
+        </div>
+        <div class="acp-canvas-wrap">
+          <canvas id="agro-ndvi-chart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Zone table -->
+    <div class="agro-zone-table-wrap">
+      <div class="azt-header">
+        <h4><i class="fa-solid fa-table"></i> Regional Agricultural Zone Impact Summary</h4>
+        <span class="azt-sub">Coupled coastal climate forecasting</span>
+      </div>
+      <table class="agro-zone-table">
+        <thead>
+          <tr>
+            <th>Agricultural Zone</th>
+            <th>Basin Region</th>
+            <th>SST Anomaly (°C)</th>
+            <th>Rainfall Deviation</th>
+            <th>NDVI Index</th>
+            <th>Yield Forecast</th>
+            <th>Vulnerability Level</th>
+          </tr>
+        </thead>
+        <tbody id="agro-zone-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
 </div><!-- End app-container -->
 
 <!-- Executive Mission Bulletin Modal -->
@@ -1396,6 +1481,6 @@
 </div>
 </div>
 </div>
-<script src="/static/app.js?v=230"></script>
+<script src="/static/app.js?v=235"></script>
 </div></body>
 </html>
