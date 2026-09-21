@@ -111,3 +111,10 @@ User Click / Form Input ──> app.js ──> GET /api/predict_profile?lat=...&
 > 3. **Preserve Immutability**: Do NOT modify model artifacts or raw dataset files as if they were source code.
 > 4. **Single Source of Truth**: Do NOT create duplicate file implementations (e.g. `model_v2.py`, `app_new.js`). Reuse existing modules and services whenever possible.
 > 5. **Path Resolution Awareness**: Always preserve `PROJECT_ROOT` path arithmetic (`parents[...]`) when adding new scripts to maintain consistent execution behavior across environments.
+
+---
+
+## Core Contributors & Maintainers
+
+- **Praveen K** (`@Praveen-K-0503` / `praveen0503k@gmail.com`) — Lead Developer & Project Architect
+- **Mitran** (`@vmit-1911` / `mrgvmitran@gmail.com`) — Contributor (OceanGNN & Visualizations)

@@ -1,8 +1,12 @@
+# OceanEmbed — 3D Subsurface Ocean Intelligence Platform
+
+**OceanEmbed** is a deep-learning ocean intelligence platform developed for the **Ministry of Earth Sciences (MoES)** and **INCOIS** (Problem Statement 26066). The system reconstructs full-column 3D ocean temperature fields (0–1000m depth across 15 standard depth levels) from multi-modal surface satellite observations across the North Indian Ocean (5°N–30°N, 45°E–105°E) at 0.25° spatial resolution.
+
+---
+
 ## Results
 
-OceanEmbed was evaluated on a chronologically held-out test period from
-2019 to 2021. Training data covered 1992–2015, while 2016–2018 was used
-for validation.
+OceanEmbed was evaluated on a chronologically held-out test period from 2019 to 2021. Training data covered 1992–2015, while 2016–2018 was used for validation.
 
 All reported metrics were calculated only over valid ocean pixels.
 
@@ -19,42 +23,33 @@ All reported metrics were calculated only over valid ocean pixels.
 
 ### Best Model
 
-The best-performing configuration was the **SST + SSH ConvLSTM**, which
-achieved an RMSE of **0.3711 °C**, MAE of **0.2671 °C**, and correlation
-of **0.9750** on the held-out 2019–2021 test period.
+The best-performing configuration was the **SST + SSH ConvLSTM**, which achieved an RMSE of **0.3711 °C**, MAE of **0.2671 °C**, and correlation of **0.9750** on the held-out 2019–2021 test period.
 
-Compared with using SST directly as a subsurface-temperature estimate,
-the best ConvLSTM reduced RMSE by approximately **28.90%**.
+Compared with using SST directly as a subsurface-temperature estimate, the best ConvLSTM reduced RMSE by approximately **28.90%**.
 
 ### Ablation Study
 
-Input ablation experiments were performed to examine the contribution
-of different surface variables.
+Input ablation experiments were performed to examine the contribution of different surface variables.
 
-Adding SSH to SST reduced test RMSE from **0.3763 °C to 0.3711 °C**,
-indicating that SSH provided additional useful information for the
-reconstruction task.
+Adding SSH to SST reduced test RMSE from **0.3763 °C to 0.3711 °C**, indicating that SSH provided additional useful information for the reconstruction task.
 
-Adding zonal and meridional surface wind components did not improve
-performance in the current experimental configuration. The four-channel
-SST + SSH + Wind model obtained an RMSE of **0.3915 °C**.
+Adding zonal and meridional surface wind components did not improve performance in the current experimental configuration. The four-channel SST + SSH + Wind model obtained an RMSE of **0.3915 °C**.
 
-This result should not be interpreted as evidence that wind forcing is
-physically unimportant. Rather, under the current monthly dataset,
-six-month input sequence, 3 m target depth, and ConvLSTM architecture,
-the additional wind channels did not improve generalization on the
-held-out test period.
+This result should not be interpreted as evidence that wind forcing is physically unimportant. Rather, under the current monthly dataset, six-month input sequence, 3 m target depth, and ConvLSTM architecture, the additional wind channels did not improve generalization on the held-out test period.
 
 ## Current Scope and Limitations
 
-The current OceanEmbed experiments should be considered a
-proof-of-concept for data-driven ocean-temperature reconstruction.
+The current OceanEmbed experiments should be considered a proof-of-concept for data-driven ocean-temperature reconstruction.
 
-The present dataset uses monthly observations from 1992–2021 and
-contains a subsurface-temperature target at approximately 3 m depth.
-Therefore, the current results should not yet be interpreted as
-multi-depth or deep-ocean temperature reconstruction.
+The present dataset uses monthly observations from 1992–2021 and contains a subsurface-temperature target at approximately 3 m depth. Therefore, the current results should not yet be interpreted as multi-depth or deep-ocean temperature reconstruction.
 
-Future work will extend the framework to multiple subsurface depth
-levels, investigate higher-temporal-resolution datasets, and explore
-more physically informed representations of atmospheric forcing.ls -lh data/raw/CORA/
+Future work will extend the framework to multiple subsurface depth levels, investigate higher-temporal-resolution datasets, and explore more physically informed representations of atmospheric forcing.
+
+---
+
+## Contributors & Maintainers
+
+| Contributor | Role | GitHub | Email |
+| :--- | :--- | :--- | :--- |
+| **Praveen K** | Lead Developer & Architect | [@Praveen-K-0503](https://github.com/Praveen-K-0503) | [praveen0503k@gmail.com](mailto:praveen0503k@gmail.com) |
+| **Mitran** | Contributor (OceanGNN & Visualizations) | [@vmit-1911](https://github.com/vmit-1911) | [mrgvmitran@gmail.com](mailto:mrgvmitran@gmail.com) |
