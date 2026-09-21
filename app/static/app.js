@@ -6,6 +6,11 @@ let compactProfileChart = null;
 let currentPrediction = null;
 let isMapInitialized = false;
 
+function setEl(id, val) {
+  const el = document.getElementById(id);
+  if (el && val !== undefined && val !== null) el.textContent = val;
+}
+
 // Initialize theme immediately to prevent flash of wrong theme
 initTheme();
 
@@ -298,6 +303,21 @@ function showPage(pageId) {
       setTimeout(() => {
         gnnLeafletMap.invalidateSize();
       }, 200);
+    }
+  } else if (pageId === "cyclone-page") {
+    const btn = document.getElementById("nav-btn-cyclone");
+    if (btn) btn.classList.add("active");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (!cycloneMapInitialized) {
+      setTimeout(() => {
+        initCycloneMap();
+        loadCyclonePreset(currentCycloneId || "biparjoy");
+      }, 60);
+    } else {
+      setTimeout(() => {
+        if (cycloneMap) cycloneMap.invalidateSize();
+      }, 100);
+      loadCyclonePreset(currentCycloneId || "biparjoy");
     }
   }
 }
@@ -3140,6 +3160,390 @@ function toggle3DFullscreen() {
     wrapper.requestFullscreen().catch(err => console.log("Fullscreen request error:", err));
   } else {
     document.exitFullscreen();
+  }
+}
+
+/* ==========================================================================
+   CYCLONE WATCH: TROPICAL CYCLONE HEAT POTENTIAL & RAPID INTENSIFICATION
+   ========================================================================== */
+
+let cycloneMap = null;
+let cycloneTrackPolyline = null;
+let cycloneMarkersGroup = null;
+let cycloneTrackTchpChart = null;
+let cycloneTrackSstChart = null;
+let currentCycloneId = "biparjoy";
+let cycloneMapInitialized = false;
+let currentTrackData = [];
+
+function initCycloneMap() {
+  const mapElem = document.getElementById("cyclone-leaflet-map");
+  if (!mapElem || typeof L === "undefined") return;
+
+  cycloneMap = L.map("cyclone-leaflet-map", {
+    center: [16.0, 72.0],
+    zoom: 5,
+    minZoom: 3,
+    maxZoom: 10,
+    zoomControl: true,
+  });
+
+  // Dark basemap tailored for ocean thermal analytics
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+    attribution: '&copy; <a href="https://carto.com/">CARTO</a> | OceanEmbed MoES/INCOIS',
+    subdomains: "abcd",
+    maxZoom: 19,
+  }).addTo(cycloneMap);
+
+  cycloneTrackPolyline = L.polyline([], {
+    color: "#38bdf8",
+    weight: 3.5,
+    dashArray: "6, 8",
+    opacity: 0.85,
+  }).addTo(cycloneMap);
+
+  cycloneMarkersGroup = L.layerGroup().addTo(cycloneMap);
+  cycloneMapInitialized = true;
+
+  // Custom coordinate probe on map click
+  cycloneMap.on("click", async function(e) {
+    const lat = Math.round(e.latlng.lat * 100) / 100;
+    const lon = Math.round(e.latlng.lng * 100) / 100;
+    if (lat < 5 || lat > 30 || lon < 45 || lon > 105) return;
+
+    try {
+      const activeDate = document.getElementById("select-date")?.value || "2024-06-01";
+      const resp = await fetch(`/api/predict?lat=${lat}&lon=${lon}&date=${activeDate}`);
+      const data = await resp.json();
+      if (data.status === "success") {
+        const diag = data.diagnostics || {};
+        const sst = data.profile ? data.profile[0].temperature_c : 29.0;
+        const tchp = diag.tchp_kj_cm2 || 0;
+        const d20 = diag.thermocline_d20_m || 0;
+        const d26 = diag.d26_isotherm_m || 0;
+
+        inspectWaypoint({
+          date: `${activeDate} (Probed)`,
+          lat: lat,
+          lon: lon,
+          stage: "Point Oceanic Heat Probe",
+          wind_kts: "--",
+          sst_c: sst,
+          tchp_kj_cm2: tchp,
+          thermocline_d20_m: d20,
+          d26_isotherm_m: d26,
+          ri_risk: tchp >= 60 ? "HIGH_RI_RISK" : (tchp >= 40 ? "MODERATE_RISK" : "LOW_RISK_COOLING"),
+        });
+
+        L.popup()
+          .setLatLng([lat, lon])
+          .setContent(`
+            <div style="font-family:'Plus Jakarta Sans',sans-serif; padding:4px;">
+              <strong style="color:#38bdf8;">Ocean Heat Probe</strong><br/>
+              <b>Coords:</b> ${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E<br/>
+              <b>TCHP:</b> <span style="color:${tchp>=60?'#ef4444':'#38bdf8'}">${tchp} kJ/cm²</span><br/>
+              <b>D26 Warm Layer:</b> ${d26} m<br/>
+              <b>Thermocline D20:</b> ${d20} m
+            </div>
+          `)
+          .openOn(cycloneMap);
+      }
+    } catch(err) {
+      console.warn("Probe error:", err);
+    }
+  });
+}
+
+function selectCyclonePreset(cycloneId, btnElem) {
+  currentCycloneId = cycloneId;
+  document.querySelectorAll(".btn-cyclone-preset").forEach(b => b.classList.remove("active"));
+  if (btnElem) btnElem.classList.add("active");
+  loadCyclonePreset(cycloneId);
+}
+
+async function loadCyclonePreset(cycloneId) {
+  try {
+    const resp = await fetch(`/api/cyclone/analyze_track?cyclone_id=${cycloneId}`);
+    const data = await resp.json();
+    if (data.status !== "success") return;
+
+    const cyclone = data.cyclone;
+    currentTrackData = data.track || [];
+
+    // 1. Update Basin indicator & Tag
+    const basinTag = document.getElementById("cyclone-basin-tag");
+    if (basinTag) basinTag.textContent = `${cyclone.name} · ${cyclone.basin} (${cyclone.dates_active})`;
+
+    // 2. Update KPI cards
+    setEl("c-kpi-tchp", `${cyclone.max_track_tchp_kj_cm2} kJ/cm²`);
+    setEl("c-kpi-d20", `${cyclone.min_thermocline_d20_m} m`);
+
+    // Find max D26 and max wind from track
+    let maxD26 = 0;
+    let maxWind = 0;
+    let peakStage = cyclone.category;
+    currentTrackData.forEach(wp => {
+      if (wp.d26_isotherm_m > maxD26) maxD26 = wp.d26_isotherm_m;
+      if (wp.wind_kts > maxWind) {
+        maxWind = wp.wind_kts;
+        peakStage = wp.stage;
+      }
+    });
+    setEl("c-kpi-d26", `${maxD26.toFixed(1)} m`);
+    setEl("c-kpi-wind", `${maxWind} kts`);
+    setEl("c-kpi-stage", peakStage);
+
+    // 3. Update RI Alert Card
+    const riCard = document.getElementById("cyclone-ri-card");
+    const riStatus = document.getElementById("cyclone-ri-status");
+    const riSub = document.getElementById("cyclone-ri-sub");
+    if (cyclone.rapid_intensification_alert) {
+      if (riCard) riCard.className = "ri-alert-card ri-high";
+      if (riStatus) riStatus.textContent = "RAPID INTENSIFICATION (RI) FAVORED";
+      if (riSub) riSub.textContent = `Peak Track TCHP ${cyclone.max_track_tchp_kj_cm2} kJ/cm² (> 60 Threshold)`;
+    } else {
+      if (riCard) riCard.className = "ri-alert-card ri-low";
+      if (riStatus) riStatus.textContent = "UPWELLING COLD WAKE DOMINATED";
+      if (riSub) riSub.textContent = `Peak Track TCHP ${cyclone.max_track_tchp_kj_cm2} kJ/cm² (Negative Thermal Feedback)`;
+    }
+
+    // 4. Render Map Track
+    renderCycloneMapTrack(currentTrackData);
+
+    // 5. Render Along-Track Charts
+    renderAlongTrackCharts(currentTrackData);
+
+    // 6. Inspect peak intensity waypoint by default
+    let peakIndex = 0;
+    let highestTchp = 0;
+    currentTrackData.forEach((wp, idx) => {
+      if (wp.tchp_kj_cm2 > highestTchp) {
+        highestTchp = wp.tchp_kj_cm2;
+        peakIndex = idx;
+      }
+    });
+    if (currentTrackData[peakIndex]) {
+      inspectWaypoint(currentTrackData[peakIndex], peakIndex);
+    }
+  } catch (err) {
+    console.error("Error loading cyclone preset:", err);
+  }
+}
+
+function renderCycloneMapTrack(track) {
+  if (!cycloneMap || !cycloneTrackPolyline || !cycloneMarkersGroup) return;
+
+  cycloneMarkersGroup.clearLayers();
+  const latlngs = track.map(wp => [wp.lat, wp.lon]);
+  cycloneTrackPolyline.setLatLngs(latlngs);
+
+  track.forEach((wp, idx) => {
+    // Custom pulsing SVG marker
+    const color = wp.risk_color || "#38bdf8";
+    const radius = Math.max(6, Math.min(14, 6 + (wp.wind_kts || 30) / 15));
+
+    const marker = L.circleMarker([wp.lat, wp.lon], {
+      radius: radius,
+      fillColor: color,
+      color: "#ffffff",
+      weight: 2,
+      opacity: 0.95,
+      fillOpacity: 0.85,
+    });
+
+    const popupContent = `
+      <div style="font-family:'Plus Jakarta Sans',sans-serif; min-width:180px;">
+        <strong style="color:${color}; font-size:13px;"><i class="fa-solid fa-hurricane"></i> ${wp.stage}</strong><br/>
+        <span style="color:#94a3b8; font-size:11px;">${wp.date} · Lat: ${wp.lat.toFixed(2)}°N, Lon: ${wp.lon.toFixed(2)}°E</span>
+        <hr style="border:0; border-top:1px solid #334155; margin:6px 0;"/>
+        <div style="font-size:12px; line-height:1.6;">
+          <b>TCHP:</b> <span style="color:${color}; font-weight:700;">${wp.tchp_kj_cm2} kJ/cm²</span><br/>
+          <b>SST:</b> ${wp.sst_c} °C<br/>
+          <b>D26 Warm Layer:</b> ${wp.d26_isotherm_m} m<br/>
+          <b>Thermocline D20:</b> ${wp.thermocline_d20_m} m<br/>
+          <b>Winds:</b> ${wp.wind_kts} kts
+        </div>
+      </div>
+    `;
+
+    marker.bindPopup(popupContent);
+    marker.on("click", () => inspectWaypoint(wp, idx));
+    cycloneMarkersGroup.addLayer(marker);
+  });
+
+  if (latlngs.length > 0 && cycloneMap) {
+    setTimeout(() => {
+      if (cycloneMap) {
+        cycloneMap.invalidateSize();
+        try {
+          cycloneMap.fitBounds(L.latLngBounds(latlngs), { padding: [40, 40] });
+        } catch(e) {
+          console.warn("fitBounds retry:", e);
+        }
+      }
+    }, 150);
+  }
+}
+
+function inspectWaypoint(wp, index) {
+  setEl("cw-point-date", `Waypoint: ${wp.date} (${wp.stage})`);
+  setEl("cw-point-coords", `Lat: ${wp.lat.toFixed(2)}°N, Lon: ${wp.lon.toFixed(2)}°E · North Indian Ocean`);
+  setEl("cw-stage-badge", wp.stage || "Tropical Cyclone");
+  setEl("cw-sst", `${wp.sst_c} °C`);
+  setEl("cw-tchp", `${wp.tchp_kj_cm2} kJ/cm²`);
+  setEl("cw-d26", `${wp.d26_isotherm_m} m`);
+  setEl("cw-d20", `${wp.thermocline_d20_m} m`);
+  setEl("cw-wind", `${wp.wind_kts || "--"} kts`);
+
+  const badge = document.getElementById("cw-stage-badge");
+  if (badge) {
+    badge.style.background = wp.tchp_kj_cm2 >= 60 ? "rgba(239,68,68,0.25)" : (wp.tchp_kj_cm2 >= 40 ? "rgba(245,158,11,0.25)" : "rgba(16,185,129,0.25)");
+    badge.style.borderColor = wp.risk_color || "#38bdf8";
+    badge.style.color = wp.risk_color || "#38bdf8";
+  }
+}
+
+function renderAlongTrackCharts(track) {
+  const dates = track.map(w => w.date.slice(5)); // MM-DD format
+  const tchps = track.map(w => w.tchp_kj_cm2);
+  const ssts = track.map(w => w.sst_c);
+  const d26s = track.map(w => w.d26_isotherm_m);
+  const winds = track.map(w => w.wind_kts);
+
+  // 1. Chart: TCHP vs 60 Critical Threshold
+  const ctxTchp = document.getElementById("cycloneTrackTchpChart")?.getContext("2d");
+  if (ctxTchp) {
+    if (cycloneTrackTchpChart) cycloneTrackTchpChart.destroy();
+
+    cycloneTrackTchpChart = new Chart(ctxTchp, {
+      type: "line",
+      data: {
+        labels: dates,
+        datasets: [
+          {
+            label: "Tropical Cyclone Heat Potential (TCHP)",
+            data: tchps,
+            borderColor: "#38bdf8",
+            backgroundColor: "rgba(56, 189, 248, 0.15)",
+            borderWidth: 2.5,
+            tension: 0.35,
+            fill: true,
+            pointBackgroundColor: track.map(w => w.risk_color || "#38bdf8"),
+            pointBorderColor: "#ffffff",
+            pointRadius: 5,
+            pointHoverRadius: 8,
+          },
+          {
+            label: "Critical RI Threshold (60 kJ/cm²)",
+            data: dates.map(() => 60),
+            borderColor: "rgba(239, 68, 68, 0.85)",
+            borderWidth: 1.8,
+            borderDash: [6, 6],
+            fill: false,
+            pointRadius: 0,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: {
+            position: "top",
+            labels: { color: "#94a3b8", font: { family: "'Plus Jakarta Sans'", size: 11 } }
+          },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => `${ctx.dataset.label}: ${ctx.raw} kJ/cm²`
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: "#64748b", font: { family: "'Plus Jakarta Sans'", size: 10 } },
+            grid: { color: "rgba(255,255,255,0.04)" }
+          },
+          y: {
+            title: { display: true, text: "TCHP (kJ/cm²)", color: "#94a3b8", font: { size: 11 } },
+            ticks: { color: "#64748b", font: { family: "'Plus Jakarta Sans'", size: 10 } },
+            grid: { color: "rgba(255,255,255,0.06)" },
+            suggestedMin: 20,
+            suggestedMax: 80,
+          }
+        }
+      }
+    });
+  }
+
+  // 2. Chart: SST & D26 Warm Layer
+  const ctxSst = document.getElementById("cycloneTrackSstChart")?.getContext("2d");
+  if (ctxSst) {
+    if (cycloneTrackSstChart) cycloneTrackSstChart.destroy();
+
+    cycloneTrackSstChart = new Chart(ctxSst, {
+      type: "line",
+      data: {
+        labels: dates,
+        datasets: [
+          {
+            label: "Sea Surface Temp (SST °C)",
+            data: ssts,
+            borderColor: "#f59e0b",
+            backgroundColor: "rgba(245, 158, 11, 0.1)",
+            borderWidth: 2,
+            tension: 0.3,
+            yAxisID: "ySst",
+            pointRadius: 4,
+          },
+          {
+            label: "26°C Isotherm Depth D26 (m)",
+            data: d26s,
+            borderColor: "#10b981",
+            backgroundColor: "rgba(16, 185, 129, 0.1)",
+            borderWidth: 2,
+            tension: 0.3,
+            yAxisID: "yD26",
+            pointRadius: 4,
+          }
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: {
+            position: "top",
+            labels: { color: "#94a3b8", font: { family: "'Plus Jakarta Sans'", size: 11 } }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: "#64748b", font: { family: "'Plus Jakarta Sans'", size: 10 } },
+            grid: { color: "rgba(255,255,255,0.04)" }
+          },
+          ySst: {
+            type: "linear",
+            position: "left",
+            title: { display: true, text: "SST (°C)", color: "#f59e0b", font: { size: 11 } },
+            ticks: { color: "#f59e0b", font: { size: 10 } },
+            grid: { color: "rgba(255,255,255,0.05)" },
+            suggestedMin: 27,
+            suggestedMax: 32,
+          },
+          yD26: {
+            type: "linear",
+            position: "right",
+            title: { display: true, text: "D26 Depth (m)", color: "#10b981", font: { size: 11 } },
+            ticks: { color: "#10b981", font: { size: 10 } },
+            grid: { drawOnChartArea: false },
+            suggestedMin: 10,
+            suggestedMax: 60,
+          }
+        }
+      }
+    });
   }
 }
 

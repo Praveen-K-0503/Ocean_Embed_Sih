@@ -57,6 +57,8 @@ Final-oceanembed/
 ├── scripts/                            # Operational Scripts & Utility Pipelines
 │   ├── check_structure.py              # Repository structure verification tool
 │   ├── print_sample_prediction.py      # Command-line prediction and diagnostics printer
+│   ├── download_real_dataset.py        # Automated Hugging Face Production Dataset Downloader
+│   ├── upload_to_huggingface.py        # Hugging Face Hub Dataset Sync Tool
 │   ├── save_trained_checkpoint.py      # Weights export & checkpoint conversion utility
 │   └── preprocessing/                  # Data preparation & normalization pipeline scripts
 │       ├── generate_daily_025_dataset.py
@@ -82,14 +84,10 @@ Final-oceanembed/
 │
 ├── .gitattributes                      # Git LFS & attribute declarations
 ├── .gitignore                          # Git exclude patterns
+├── .mailmap                            # Git author and contributor mapping
 ├── README.md                           # Operational project overview
 ├── requirements.txt                    # Python environment dependencies
-├── run_demo.py                         # Complete platform launcher script
-├── create_dummy_data.py                # Standalone dummy dataset generator
-├── execute_fixes.py                    # Static asset maintenance helper
-├── fix_app_data.py                     # Static asset data binding helper
-├── update_appjs.py                     # Static asset UI component script helper
-└── update_css.py                       # Static asset UI styling script helper
+└── run_demo.py                         # Complete platform launcher script
 ```
 
 ---
