@@ -73,7 +73,7 @@ class ArgoValidationEngine:
                         "depths": [float(d) for d in self.depths],
                         "obs_temp": [round(float(v), 2) if np.isfinite(v) else None for v in obs_col],
                         "pred_temp": [round(float(v), 2) if np.isfinite(v) else None for v in pred_col],
-                        "salinity_psu": [35.2 - 0.005 * d for d in self.depths],
+                        "salinity_psu": [round(float(35.2 - 0.005 * float(d)), 3) for d in self.depths],
                     })
 
                 print(f"[ARGO] Loaded {len(self.floats)} regional in-situ ARGO stations from INCOIS dataset.", flush=True)
