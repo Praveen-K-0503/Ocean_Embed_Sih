@@ -3,6 +3,12 @@
 venv/
 env/
 
+# Dependencies & Build Cache
+node_modules/
+**/node_modules/
+.vite/
+**/.vite/
+
 # Python cache
 __pycache__/
 *.py[cod]

@@ -14,6 +14,7 @@ Outputs:
 
 from datetime import datetime, timezone
 from pathlib import Path
+import math
 import sys
 from typing import Any, Dict, List, Optional, Tuple
 import h5py
@@ -204,6 +205,29 @@ class OceanEmbedPredictor:
     # ─────────────────────────────────────────────────────────────────────────
     # Public Inference APIs
     # ─────────────────────────────────────────────────────────────────────────
+
+    def get_latent_embeddings(self, date: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Extract OceanEmbedNet 64-channel latent surface embeddings for the selected date.
+        Returns top-2 principal activation components mapped over the NIO 0.25° grid.
+        """
+        date_str = self._resolve_date(date)
+        _, _, _, z_surf = self._compute_or_get_prediction(date_str)
+
+        c1 = np.where(self.ocean_mask, z_surf[0], np.nan)
+        c2 = np.where(self.ocean_mask, z_surf[1], np.nan)
+
+        c1_list = [[None if math.isnan(float(v)) else round(float(v), 4) for v in row] for row in c1]
+        c2_list = [[None if math.isnan(float(v)) else round(float(v), 4) for v in row] for row in c2]
+
+        return {
+            "status": "success",
+            "date": date_str,
+            "lats": [round(float(lat), 2) for lat in self.lats],
+            "lons": [round(float(lon), 2) for lon in self.lons],
+            "embedding_channel_1": c1_list,
+            "embedding_channel_2": c2_list,
+        }
 
     def predict_profile(
         self,
