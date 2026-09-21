@@ -497,8 +497,8 @@ def analyze_cyclone_track(cyclone_id: str = Query("biparjoy")):
             "risk_color": risk_color,
         })
 
-    # Overall storm classification
-    ri_favorable = ri_points_count >= 2
+    # Overall storm classification: RI is favored if peak along-track TCHP exceeds the 60 kJ/cm2 critical threshold
+    ri_favorable = max_tchp >= 60.0
 
     return JSONResponse(content={
         "status": "success",

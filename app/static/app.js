@@ -3496,7 +3496,7 @@ function renderAlongTrackCharts(track) {
         plugins: {
           legend: {
             position: "top",
-            labels: { color: "#94a3b8", font: { family: "'Plus Jakarta Sans'", size: 11 } }
+            labels: { color: "#334155", font: { family: "'Plus Jakarta Sans'", size: 11, weight: 600 } }
           },
           tooltip: {
             callbacks: {
@@ -3506,13 +3506,13 @@ function renderAlongTrackCharts(track) {
         },
         scales: {
           x: {
-            ticks: { color: "#64748b", font: { family: "'Plus Jakarta Sans'", size: 10 } },
-            grid: { color: "rgba(255,255,255,0.04)" }
+            ticks: { color: "#475569", font: { family: "'Plus Jakarta Sans'", size: 10 } },
+            grid: { color: "rgba(0,0,0,0.06)" }
           },
           y: {
-            title: { display: true, text: "TCHP (kJ/cm²)", color: "#94a3b8", font: { size: 11 } },
-            ticks: { color: "#64748b", font: { family: "'Plus Jakarta Sans'", size: 10 } },
-            grid: { color: "rgba(255,255,255,0.06)" },
+            title: { display: true, text: "TCHP (kJ/cm²)", color: "#334155", font: { size: 11, weight: 600 } },
+            ticks: { color: "#475569", font: { family: "'Plus Jakarta Sans'", size: 10 } },
+            grid: { color: "rgba(0,0,0,0.06)" },
             suggestedMin: 20,
             suggestedMax: 80,
           }
@@ -3560,28 +3560,28 @@ function renderAlongTrackCharts(track) {
         plugins: {
           legend: {
             position: "top",
-            labels: { color: "#94a3b8", font: { family: "'Plus Jakarta Sans'", size: 11 } }
+            labels: { color: "#334155", font: { family: "'Plus Jakarta Sans'", size: 11, weight: 600 } }
           }
         },
         scales: {
           x: {
-            ticks: { color: "#64748b", font: { family: "'Plus Jakarta Sans'", size: 10 } },
-            grid: { color: "rgba(255,255,255,0.04)" }
+            ticks: { color: "#475569", font: { family: "'Plus Jakarta Sans'", size: 10 } },
+            grid: { color: "rgba(0,0,0,0.06)" }
           },
           ySst: {
             type: "linear",
             position: "left",
-            title: { display: true, text: "SST (°C)", color: "#f59e0b", font: { size: 11 } },
-            ticks: { color: "#f59e0b", font: { size: 10 } },
-            grid: { color: "rgba(255,255,255,0.05)" },
+            title: { display: true, text: "SST (°C)", color: "#d97706", font: { size: 11, weight: 600 } },
+            ticks: { color: "#d97706", font: { size: 10 } },
+            grid: { color: "rgba(0,0,0,0.06)" },
             suggestedMin: 27,
             suggestedMax: 32,
           },
           yD26: {
             type: "linear",
             position: "right",
-            title: { display: true, text: "D26 Depth (m)", color: "#10b981", font: { size: 11 } },
-            ticks: { color: "#10b981", font: { size: 10 } },
+            title: { display: true, text: "D26 Depth (m)", color: "#059669", font: { size: 11, weight: 600 } },
+            ticks: { color: "#059669", font: { size: 10 } },
             grid: { drawOnChartArea: false },
             suggestedMin: 10,
             suggestedMax: 60,
