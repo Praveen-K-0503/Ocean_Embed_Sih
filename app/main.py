@@ -341,6 +341,39 @@ def get_agro_analytics_api(date: str = Query(None, description="Date YYYY-MM-DD"
     })
 
 
+@app.get("/api/export_netcdf")
+def export_netcdf_api(date: str = Query(None, description="Date YYYY-MM-DD")):
+    """
+    Export full 3D reconstructed ocean temperature grid (15 depths x 101 lats x 241 lons)
+    as a standardized Climate and Forecast (CF-1.6) NetCDF (.nc) binary file.
+    Directly answers SIH Deliverable #4: Standardized 0.25° Daily 3D Output for INCOIS LAS.
+    """
+    try:
+        predictor = get_predictor()
+        date_str = predictor._resolve_date(date)
+        export_file = predictor.export_reconstructed_netcdf(date=date_str)
+        return FileResponse(
+            path=str(export_file),
+            filename=f"OceanEmbed_Reconstructed_3D_{date_str}.nc",
+            media_type="application/x-netcdf",
+        )
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
+
+
+@app.get("/api/mhw_analytics")
+def get_mhw_analytics_api(date: str = Query(None, description="Date YYYY-MM-DD")):
+    """
+    Marine Heatwave (MHW) Subsurface Heat Penetration & Bleaching Alert API (Theme: Disaster Management).
+    Evaluates vertical thermal penetration (0–100m) and Hobday et al. (2016) categories for coral/fishery disaster zones.
+    """
+    try:
+        res = get_predictor().get_mhw_analytics(date=date)
+        return JSONResponse(content=res)
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
+
+
 # ─── Cyclone Watch: Ocean Heat & Rapid Intensification Endpoints ───────────────
 
 CYCLONE_PRESETS = {

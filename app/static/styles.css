@@ -6817,7 +6817,7 @@ select:focus {
   display: none !important;
 }
 
-/* Cyclone Hero Region with Clean Light White & Ocean Backdrop */
+/* Cyclone Hero Region with Panoramic Ocean Seascape Backdrop */
 .cyclone-hero-region {
   position: relative !important;
   z-index: 1 !important;
@@ -6830,10 +6830,20 @@ select:focus {
   margin-bottom: 0 !important;
   height: auto !important;
   min-height: auto !important;
-  background: linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 45%, #f8fafc 100%) !important;
-  padding-top: 105px !important;
-  padding-bottom: 20px !important;
+  background: url('/static/images/panoramic_blue_coastline_seascape.png?v=10') center top/cover no-repeat !important;
+  padding-top: 110px !important;
+  padding-bottom: 24px !important;
   border-bottom: 1.5px solid #e2e8f0;
+  overflow: hidden !important;
+}
+
+.cyclone-hero-region::before {
+  content: '' !important;
+  position: absolute !important;
+  inset: 0 !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.35) 45%, #f8fafc 100%) !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
 }
 
 .cyclone-hero-container {
@@ -7218,11 +7228,12 @@ select:focus {
 
 /* Right Waypoint & Analytics */
 .waypoint-card {
-  background: #f8fafc;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 16px 20px;
-  margin-bottom: 16px;
+  background: #ffffff !important;
+  border: 1.5px solid #e2e8f0 !important;
+  border-radius: 14px !important;
+  padding: 16px 20px !important;
+  margin-bottom: 16px !important;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.02) !important;
 }
 
 .wc-header {
@@ -7322,5 +7333,260 @@ select:focus {
   }
   .cyclone-kpi-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Primary Gradient Action Button (NetCDF Export) */
+.btn-primary-gradient {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid #0284c7 !important;
+  font-weight: 700 !important;
+  border-radius: 8px !important;
+  padding: 6px 14px !important;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.25);
+  transition: all 0.2s ease;
+  font-size: 12px;
+}
+.btn-primary-gradient:hover {
+  background: linear-gradient(135deg, #0369a1 0%, #075985 100%) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
+}
+
+/* Marine Heatwave (MHW) Subsurface Disaster Watch Styles */
+.mhw-container {
+  padding: 8px 0;
+}
+
+.mhw-header-card {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+}
+
+.mhw-hc-left {
+  flex: 1;
+}
+
+.mhw-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: #dc2626;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  padding: 3px 10px;
+  border-radius: 20px;
+  margin-bottom: 8px;
+}
+
+.mhw-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 6px 0;
+}
+
+.mhw-sub {
+  font-size: 13px;
+  color: #475569;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.mhw-kpi-summary {
+  display: flex;
+  gap: 16px;
+}
+
+.mhw-kpi-pill {
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px 18px;
+  display: flex;
+  flex-direction: column;
+  min-width: 140px;
+  text-align: right;
+}
+
+.mhw-kp-lbl {
+  font-size: 11px;
+  color: #64748b;
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.mhw-kp-val {
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.mhw-kp-sub {
+  font-size: 10.5px;
+  color: #94a3b8;
+}
+
+.mhw-zones-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+}
+
+.mhw-zone-card {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: all 0.2s ease;
+}
+
+.mhw-zone-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+  border-color: #cbd5e1;
+}
+
+.mhw-zc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.mhw-zc-name {
+  font-size: 16px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 3px 0;
+}
+
+.mhw-zc-basin {
+  font-size: 11.5px;
+  color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mhw-category-badge {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 12px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.mhw-zc-eco {
+  font-size: 12px;
+  color: #475569;
+  margin: 0;
+  background: #f8fafc;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+.mhw-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  padding: 8px 0;
+  border-top: 1px solid #f1f5f9;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.mhw-stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.mhw-stat-lbl {
+  font-size: 10.5px;
+  color: #64748b;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.mhw-stat strong {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.mhw-penetration-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mhw-pb-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #334155;
+}
+
+.mhw-pb-header strong {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.mhw-bar-track {
+  width: 100%;
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.mhw-bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.6s ease;
+}
+
+.mhw-advisory-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #0f172a;
+}
+
+@media (max-width: 900px) {
+  .mhw-zones-grid {
+    grid-template-columns: 1fr;
+  }
+  .mhw-header-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .mhw-kpi-summary {
+    width: 100%;
+    justify-content: space-between;
   }
 }

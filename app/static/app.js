@@ -2332,6 +2332,85 @@ function switchTab(tabId, btnEl) {
     renderEmbeddings();
   } else if (tabId === "agro-tab") {
     loadAgroAnalytics();
+  } else if (tabId === "mhw-tab") {
+    loadMhwAnalytics();
+  }
+}
+
+/* Download CF-1.6 Standardized NetCDF 3D Ocean Grid */
+function exportNetCDF() {
+  const date = (currentPrediction && currentPrediction.date) || (state && state.currentDate) || (document.getElementById("input-date") && document.getElementById("input-date").value) || "2024-06-01";
+  window.location.href = `/api/export_netcdf?date=${encodeURIComponent(date)}`;
+}
+
+async function loadMhwAnalytics() {
+  const container = document.getElementById("mhw-zones-container");
+  if (!container) return;
+  const date = (currentPrediction && currentPrediction.date) || (state && state.currentDate) || (document.getElementById("input-date") && document.getElementById("input-date").value) || "2024-06-01";
+
+  try {
+    const res = await fetch(`/api/mhw_analytics?date=${encodeURIComponent(date)}`);
+    const data = await res.json();
+    if (data.status !== "success") return;
+
+    const maxPenEl = document.getElementById("mhw-max-pen");
+    if (maxPenEl) maxPenEl.textContent = `${data.max_subsurface_penetration_m} m`;
+
+    const severeEl = document.getElementById("mhw-severe-count");
+    if (severeEl) severeEl.textContent = `${data.severe_zones_count} Active`;
+
+    container.innerHTML = data.zones.map(z => `
+      <div class="mhw-zone-card">
+        <div class="mhw-zc-header">
+          <div>
+            <h4 class="mhw-zc-name">${z.name}</h4>
+            <span class="mhw-zc-basin"><i class="fa-solid fa-location-dot"></i> ${z.basin} (${z.lat}°N, ${z.lon}°E)</span>
+          </div>
+          <span class="mhw-category-badge" style="background:${z.category_color}18; color:${z.category_color}; border: 1.5px solid ${z.category_color};">
+            ${z.category}
+          </span>
+        </div>
+        <p class="mhw-zc-eco"><i class="fa-solid fa-leaf"></i> <strong>Ecosystem:</strong> ${z.ecosystem}</p>
+        
+        <div class="mhw-stats-grid">
+          <div class="mhw-stat">
+            <span class="mhw-stat-lbl">Surface SST</span>
+            <strong>${z.sst_c} °C</strong>
+          </div>
+          <div class="mhw-stat">
+            <span class="mhw-stat-lbl">50m Depth Temp</span>
+            <strong>${z.temp_50m_c} °C</strong>
+          </div>
+          <div class="mhw-stat">
+            <span class="mhw-stat-lbl">Thermal Anomaly</span>
+            <strong style="color:${z.thermal_anomaly_c > 0 ? '#ef4444' : '#10b981'};">
+              ${z.thermal_anomaly_c > 0 ? '+' : ''}${z.thermal_anomaly_c} °C
+            </strong>
+          </div>
+          <div class="mhw-stat">
+            <span class="mhw-stat-lbl">Heat Stress (DHD)</span>
+            <strong>${z.degree_heating_days} °C·days</strong>
+          </div>
+        </div>
+
+        <div class="mhw-penetration-block">
+          <div class="mhw-pb-header">
+            <span><i class="fa-solid fa-water"></i> Subsurface Heat Penetration (≥ 28°C Threshold)</span>
+            <strong>${z.heat_penetration_depth_m} m deep</strong>
+          </div>
+          <div class="mhw-bar-track">
+            <div class="mhw-bar-fill" style="width: ${Math.min(100, Math.max(8, (z.heat_penetration_depth_m / 100) * 100))}%; background: ${z.category_color};"></div>
+          </div>
+        </div>
+
+        <div class="mhw-advisory-footer" style="background:${z.category_color}0d; border-left: 3px solid ${z.category_color};">
+          <i class="fa-solid fa-bell" style="color:${z.category_color};"></i>
+          <span><strong>Advisory:</strong> ${z.risk_level}</span>
+        </div>
+      </div>
+    `).join("");
+  } catch (err) {
+    console.error("Error loading MHW analytics:", err);
   }
 }
 

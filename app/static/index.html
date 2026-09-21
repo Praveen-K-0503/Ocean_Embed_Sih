@@ -462,11 +462,13 @@
 <button class="tab-btn" onclick="switchTab('transect-tab', this)"><i class="fa-solid fa-layer-group"></i> Ocean Depth Section</button>
 <button class="tab-btn" onclick="switchTab('validation-tab', this)"><i class="fa-solid fa-chart-bar"></i> Depth-Wise Validation</button>
 <button class="tab-btn" onclick="switchTab('embedding-tab', this)"><i class="fa-solid fa-brain"></i> OceanEmbedNet Embeddings</button>
+<button class="tab-btn" onclick="switchTab('mhw-tab', this)"><i class="fa-solid fa-fire-flame-curved"></i> Marine Heatwave Watch</button>
 <button class="tab-btn" onclick="switchTab('agro-tab', this)"><i class="fa-solid fa-seedling"></i> Agro Analytics</button>
 </div>
 <div class="header-action-buttons">
+<button class="btn-sm btn-primary-gradient" onclick="exportNetCDF()" title="Download INCOIS CF-1.6 Standardized NetCDF (15 depths × 101 × 241)"><i class="fa-solid fa-cloud-arrow-down"></i> CF-NetCDF (.nc)</button>
 <button class="btn-sm btn-action-bulletin" onclick="openExecutiveBulletin()" title="View Operational Oceanographic Dispatch"><i class="fa-solid fa-file-waveform"></i> Mission Bulletin</button>
-<button class="btn-sm btn-outline" onclick="exportCSV()" title="Export CF-Compliant CSV"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
+<button class="btn-sm btn-outline" onclick="exportCSV()" title="Export CF-Compliant CSV"><i class="fa-solid fa-file-csv"></i> CSV</button>
 <button class="btn-sm btn-outline" onclick="exportData()" title="Export JSON"><i class="fa-solid fa-code"></i> JSON</button>
 </div>
 </div>
@@ -688,6 +690,34 @@
 <tbody id="agro-zone-tbody"></tbody>
 </table>
 </div>
+<!-- Tab 6: Marine Heatwave (MHW) & Subsurface Thermal Stress Watch (Theme: Disaster Management) -->
+<div class="tab-pane" id="mhw-tab">
+  <div class="mhw-container">
+    <div class="mhw-header-card">
+      <div class="mhw-hc-left">
+        <div class="mhw-badge"><i class="fa-solid fa-triangle-exclamation"></i> MOES · INCOIS DISASTER MANAGEMENT ADVISORY</div>
+        <h3 class="mhw-title">Subsurface Marine Heatwave &amp; Ecological Hazard Watch</h3>
+        <p class="mhw-sub">Real-time vertical heat penetration profiling and thermal bleaching threat monitoring across critical North Indian Ocean marine protected areas (Hobday et al. 2016 / INCOIS standard).</p>
+      </div>
+      <div class="mhw-kpi-summary">
+        <div class="mhw-kpi-pill">
+          <span class="mhw-kp-lbl">Max Heat Penetration</span>
+          <strong class="mhw-kp-val" id="mhw-max-pen">-- m</strong>
+          <span class="mhw-kp-sub">Thermal depth ≥ 28°C</span>
+        </div>
+        <div class="mhw-kpi-pill">
+          <span class="mhw-kp-lbl">Severe Risk Zones</span>
+          <strong class="mhw-kp-val" id="mhw-severe-count" style="color:#ef4444;">--</strong>
+          <span class="mhw-kp-sub">Cat III / IV Active</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Ecozone Grid -->
+    <div class="mhw-zones-grid" id="mhw-zones-container">
+      <!-- Dynamically populated via JS -->
+    </div>
+  </div>
 </div>
 </div>
 </div>
@@ -1359,12 +1389,13 @@
 </div>
 </div>
 <div class="bulletin-footer">
-<button class="btn-primary" onclick="window.print()"><i class="fa-solid fa-print"></i> Print Mission Briefing</button>
+<button class="btn-primary" onclick="exportNetCDF()"><i class="fa-solid fa-cloud-arrow-down"></i> Download CF-NetCDF (.nc)</button>
 <button class="btn-outline" onclick="exportCSV()"><i class="fa-solid fa-file-csv"></i> Download CF-CSV</button>
+<button class="btn-secondary" onclick="window.print()"><i class="fa-solid fa-print"></i> Print Mission Briefing</button>
 <button class="btn-secondary" onclick="closeExecutiveBulletin()">Close</button>
 </div>
 </div>
 </div>
-<script src="/static/app.js?v=225"></script>
+<script src="/static/app.js?v=230"></script>
 </div></body>
 </html>
