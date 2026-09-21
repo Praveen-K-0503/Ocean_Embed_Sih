@@ -3184,16 +3184,61 @@ function initCycloneMap() {
     center: [16.0, 72.0],
     zoom: 5,
     minZoom: 3,
-    maxZoom: 10,
+    maxZoom: 12,
     zoomControl: true,
   });
 
-  // Dark basemap tailored for ocean thermal analytics
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+  // Real Satellite Earth & Ocean Imagery (High-Resolution True Color)
+  const esriSat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+    attribution: "&copy; Esri, Maxar, Earthstar Geographics & OceanEmbed",
+    maxZoom: 12,
+    minZoom: 3,
+  });
+
+  // Ocean Bathymetry & Coastline Label Reference Overlay
+  const oceanLabels = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}", {
+    attribution: "&copy; Esri Ocean Reference",
+    maxZoom: 12,
+    minZoom: 3,
+  });
+
+  // Bathymetric Ocean Basemap
+  const oceanBase = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}", {
+    attribution: "&copy; Esri Ocean Basemap & GEBCO",
+    maxZoom: 10,
+    minZoom: 3,
+  });
+
+  // Dark Tactical Ocean Map
+  const cartoDark = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
     attribution: '&copy; <a href="https://carto.com/">CARTO</a> | OceanEmbed MoES/INCOIS',
     subdomains: "abcd",
     maxZoom: 19,
+    minZoom: 3,
+  });
+
+  // Default to Real Satellite Imagery with depth/coastline labels
+  esriSat.addTo(cycloneMap);
+  oceanLabels.addTo(cycloneMap);
+
+  // Basin Study Domain Boundary (North Indian Ocean 5°-30°N, 45°-105°E)
+  const bounds = [[5.0, 45.0], [30.0, 105.0]];
+  L.rectangle(bounds, {
+    color: "#38bdf8",
+    weight: 2,
+    dashArray: "6, 6",
+    fillColor: "#38bdf8",
+    fillOpacity: 0.05,
   }).addTo(cycloneMap);
+
+  // Interactive Layer Control
+  L.control.layers({
+    "🛰️ Real Satellite Imagery": esriSat,
+    "🌊 Ocean Bathymetry Basemap": oceanBase,
+    "🌑 Tactical Dark Ocean": cartoDark,
+  }, {
+    "🏷️ Coastline & Depth Labels": oceanLabels,
+  }, { position: "topright" }).addTo(cycloneMap);
 
   cycloneTrackPolyline = L.polyline([], {
     color: "#38bdf8",

@@ -6803,10 +6803,9 @@ select:focus {
    ========================================================================== */
 
 #cyclone-page {
-  padding: 12px 16px 48px;
+  padding: 0 !important;
+  margin: 0 !important;
   width: 100%;
-  max-width: 1680px;
-  margin: 0 auto;
   min-height: calc(100vh - 80px);
   color: #f8fafc;
   display: flex;
@@ -6815,6 +6814,59 @@ select:focus {
 
 #cyclone-page.hidden {
   display: none !important;
+}
+
+/* Cyclone Hero Region with Panoramic Ocean Seascape Background */
+.cyclone-hero-region {
+  position: relative !important;
+  z-index: 1 !important;
+  width: 100vw !important;
+  left: 50% !important;
+  right: 50% !important;
+  margin-left: -50vw !important;
+  margin-right: -50vw !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  height: auto !important;
+  min-height: auto !important;
+  background-image: url('/static/images/panoramic_blue_coastline_seascape.png?v=10') !important;
+  background-position: center 25% !important;
+  background-size: cover !important;
+  background-repeat: no-repeat !important;
+  padding-top: 114px !important;
+  padding-bottom: 24px !important;
+  box-shadow: 0 4px 20px rgba(0, 70, 140, 0.08) !important;
+  overflow: hidden !important;
+}
+
+.cyclone-hero-region::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0%, rgba(240, 249, 255, 0.88) 65%, #f0f9ff 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+[data-theme="dark"] .cyclone-hero-region::before {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.45) 0%, rgba(15, 23, 42, 0.88) 65%, #0b1329 100%);
+}
+
+.cyclone-hero-container {
+  position: relative;
+  z-index: 2;
+  max-width: 1680px;
+  margin: 0 auto;
+  padding: 0 32px;
+}
+
+.cyclone-content-container {
+  position: relative;
+  z-index: 2;
+  max-width: 1680px;
+  margin: 0 auto;
+  padding: 24px 32px 48px;
+  width: 100%;
 }
 
 .cyclone-header-banner {
