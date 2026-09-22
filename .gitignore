@@ -30,6 +30,9 @@ build/
 *.pkl
 *.npz
 *.npy
+!ocean_embed_inference_assets/*.npy
+!ocean_embed_inference_assets/*.npz
+!ocean_embed_inference_assets/*.json
 
 # Model checkpoints (large binaries inside checkpoints/)
 checkpoints/*.pt

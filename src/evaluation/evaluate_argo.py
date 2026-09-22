@@ -6,12 +6,13 @@ Performs scientific validation using the official INCOIS Gridded ARGO dataset
 Computes depth-wise RMSE, MAE, Bias, and Pearson Correlation across the North Indian Ocean.
 """
 
+import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 import h5py
 import numpy as np
 
-from src.config import SIH_FINAL_ARGO_NC, STANDARD_DEPTHS, LATS, LONS, METRICS_JSON_PATH
+from src.config import SIH_FINAL_ARGO_NC, STANDARD_DEPTHS, LATS, LONS, METRICS_JSON_PATH, ASSETS_DIR
 
 
 class ArgoValidationEngine:
@@ -25,11 +26,23 @@ class ArgoValidationEngine:
         self.depths = np.array(STANDARD_DEPTHS, dtype=np.float32)
         self.floats: List[Dict[str, Any]] = []
         self._metrics: Dict[str, Any] = {}
+        self._cached_metrics: Optional[Dict[str, Any]] = None
         self._load_argo_profiles()
 
     def _load_argo_profiles(self):
         """Extract regional in-situ ARGO profiles across North Indian Ocean basins."""
         if not self.argo_path.exists():
+            fallback_json = ASSETS_DIR / "argo_floats.json"
+            if fallback_json.exists():
+                try:
+                    with open(fallback_json, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                        self.floats = data.get("floats", [])
+                        self._cached_metrics = data.get("metrics", {})
+                        print(f"[ARGO] Loaded {len(self.floats)} regional in-situ ARGO stations from precomputed assets.", flush=True)
+                        return
+                except Exception as e:
+                    print(f"[WARN] Failed loading argo_floats.json: {e}", flush=True)
             print(f"[WARN] ARGO dataset not found at {self.argo_path}", flush=True)
             return
 
@@ -86,6 +99,9 @@ class ArgoValidationEngine:
         Compute depth-wise validation skill metrics against official INCOIS ARGO data.
         Returns RMSE, MAE, Bias, and Correlation per standard depth level.
         """
+        if self._cached_metrics:
+            return self._cached_metrics
+
         if not self.argo_path.exists():
             return {
                 "overall_rmse_c": 0.992,
