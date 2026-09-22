@@ -1669,46 +1669,65 @@ async function renderStudio3D() {
     const minLon = lonsAll[0];
     const maxLon = lonsAll[lonsAll.length - 1];
 
-    // 1. Build selected active color palette dynamically: Warm red/yellow surface water -> Cool dark blue deep water
+    // 1. Build distinct scientific color palettes: Deep ocean, thermal flare, magma, neon bioluminescent, spectral, cool-warm, viridis
     function buildActiveColorscale(name) {
-      if (name === "Viridis") {
+      if (name === "Ocean" || name === "Deep Oceanic") {
         return [
-          [0.00, "#081d58"],
-          [0.20, "#253494"],
-          [0.40, "#21918c"],
-          [0.60, "#41ab5d"],
-          [0.80, "#fde725"],
-          [1.00, "#ff5400"]
+          [0.00, "#030712"],
+          [0.20, "#0c4a6e"],
+          [0.40, "#0284c7"],
+          [0.60, "#38bdf8"],
+          [0.80, "#a5f3fc"],
+          [1.00, "#ffffff"]
         ];
-      } else if (name === "Jet") {
+      } else if (name === "Magma") {
         return [
-          [0.00, "#000080"], [0.125, "#0000ff"], [0.375, "#00ffff"],
-          [0.625, "#ffff00"], [0.875, "#ff0000"], [1.00, "#800000"]
+          [0.00, "#000004"],
+          [0.25, "#51127c"],
+          [0.50, "#b73779"],
+          [0.75, "#fc8961"],
+          [1.00, "#fec087"]
         ];
-      } else if (name === "Plasma") {
+      } else if (name === "Bioluminescent") {
         return [
-          [0.00, "#03045e"], [0.25, "#0077b6"], [0.50, "#00b4d8"],
-          [0.75, "#f77f00"], [1.00, "#d62828"]
+          [0.00, "#11002c"],
+          [0.25, "#4c1d95"],
+          [0.50, "#06b6d4"],
+          [0.75, "#10b981"],
+          [1.00, "#84cc16"]
         ];
-      } else if (name === "Turbo") {
+      } else if (name === "Spectral") {
         return [
-          [0.00, "#30123b"], [0.20, "#4162e0"], [0.40, "#19bb6a"],
-          [0.60, "#a2fc3c"], [0.80, "#e84715"], [1.00, "#7a0403"]
+          [0.00, "#581845"],
+          [0.25, "#2980b9"],
+          [0.50, "#27ae60"],
+          [0.75, "#f39c12"],
+          [1.00, "#c0392b"]
         ];
-      } else if (name === "Cividis") {
+      } else if (name === "CoolWarm") {
         return [
-          [0.00, "#00204d"], [0.25, "#414d6b"], [0.50, "#7c7b78"],
-          [0.75, "#b9ac70"], [1.00, "#ffea46"]
+          [0.00, "#1d4ed8"],
+          [0.28, "#60a5fa"],
+          [0.50, "#f1f5f9"],
+          [0.72, "#f87171"],
+          [1.00, "#b91c1c"]
+        ];
+      } else if (name === "Viridis") {
+        return [
+          [0.00, "#440154"],
+          [0.25, "#3b528b"],
+          [0.50, "#21918c"],
+          [0.75, "#5ec962"],
+          [1.00, "#fde725"]
         ];
       }
+      // Thermal Flare default
       return [
-        [0.00, "#03045e"],
-        [0.17, "#023e8a"],
-        [0.33, "#0077b6"],
-        [0.50, "#00b4d8"],
-        [0.67, "#ffd166"],
-        [0.83, "#f77f00"],
-        [1.00, "#d62828"]
+        [0.00, "#0a192f"],
+        [0.25, "#1e3a8a"],
+        [0.50, "#06b6d4"],
+        [0.75, "#f59e0b"],
+        [1.00, "#dc2626"]
       ];
     }
 

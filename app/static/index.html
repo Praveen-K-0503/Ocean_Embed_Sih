@@ -10,20 +10,16 @@
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Great+Vibes&amp;family=Caveat:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
-<!-- Leaflet CSS & JS -->
+<!-- Leaflet CSS -->
 <link href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" rel="stylesheet"/>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-<!-- Chart.js & Plotly.js 3D -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
-<link href="/static/styles.css?v=250" rel="stylesheet"/>
+<link href="/static/styles.css?v=251" rel="stylesheet"/>
 </head>
 <body>
 <!-- Screen 1: Interactive Ocean Login Gateway -->
 <div id="login-screen">
 <!-- 3D Spline Interactive Ocean Waves Background + Canvas Fallback -->
 <div class="spline-container">
-<iframe allow="autoplay; fullscreen" frameborder="0" height="100%" id="spline-iframe" src="https://my.spline.design/ocean-v65TrYXSTK6XDNjAxmYKTf31/" width="100%"></iframe>
+<iframe allow="autoplay; fullscreen" frameborder="0" height="100%" id="spline-iframe" loading="lazy" src="https://my.spline.design/ocean-v65TrYXSTK6XDNjAxmYKTf31/" width="100%"></iframe>
 <div class="ocean-canvas-container">
 <canvas id="ocean-wave-canvas"></canvas>
 <div class="ocean-depth-gradient"></div>
@@ -144,7 +140,7 @@
 <div class="page-view active" id="home-page">
 <!-- Dynamic Cinematic Video Background -->
 <div class="home-video-container">
-<video autoplay="" class="home-bg-video" loop="" muted="" playsinline="" preload="auto">
+<video autoplay class="home-bg-video" loop muted playsinline preload="metadata" poster="/video/poster.jpg">
 <source src="/video/244754.mp4" type="video/mp4"/>
 </video>
 <div class="home-video-overlay"></div>
@@ -702,12 +698,13 @@
         <div class="studio-control-group">
           <label><i class="fa-solid fa-palette"></i> Palette</label>
           <select id="studio-colorscale" onchange="renderStudio3D()">
-            <option value="Thermal" selected>Thermal (Warm)</option>
-            <option value="Viridis">Viridis</option>
-            <option value="Jet">Jet</option>
-            <option value="Plasma">Plasma</option>
-            <option value="Turbo">Turbo</option>
-            <option value="Cividis">Cividis</option>
+            <option value="Ocean" selected>Deep Oceanic (Navy / Aqua / Seafoam White)</option>
+            <option value="Thermal">Thermal Flare (Sapphire to Lava Crimson)</option>
+            <option value="Magma">Magma (Volcanic High Contrast)</option>
+            <option value="Bioluminescent">Bioluminescent (Neon Violet / Cyan / Lime)</option>
+            <option value="Spectral">Spectral (Multi-Band Rainbow)</option>
+            <option value="CoolWarm">Cool-Warm (Divergent Balance)</option>
+            <option value="Viridis">Viridis (Perceptual Uniform)</option>
           </select>
         </div>
 
@@ -1662,7 +1659,10 @@
 <button class="btn-secondary" onclick="closeExecutiveBulletin()">Close</button>
 </div>
 </div>
-</div>
-<script src="/static/app.js?v=250"></script>
+<!-- Deferred High-Performance Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<script src="/static/app.js?v=251"></script>
 </div></body>
 </html>
