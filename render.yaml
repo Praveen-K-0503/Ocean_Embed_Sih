@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: oceanembed-platform
+    env: docker
+    plan: standard
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/dates
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: 8000

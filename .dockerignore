@@ -1,0 +1,16 @@
+.git
+.github
+.venv
+venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.log
+.DS_Store
+Thumbs.db
+scratch
+video/*.mp4
+video/*.mov
+outputs/evaluation_results/
+.pytest_cache
