@@ -2,7 +2,7 @@ FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PORT=8000
+    PORT=7860
 
 WORKDIR /app
 
@@ -24,8 +24,8 @@ RUN pip install --no-cache-dir torch torchvision --index-url https://download.py
 # Copy repository source code and assets
 COPY . .
 
-# Expose web application port
-EXPOSE 8000
+# Expose web application ports (7860 for Hugging Face Spaces, 8000 for Render / local)
+EXPOSE 7860 8000
 
-# Start Uvicorn ASGI server with dynamic port support for cloud hosts
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Start Uvicorn ASGI server with dynamic port support (Hugging Face passes 7860, Render passes custom $PORT)
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-7860}"]
