@@ -18,6 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initTheme();
   initInteractiveLogin();
   initOceanCanvasWave();
+  initDeferredVideo();
 
   const isLoggedIn = sessionStorage.getItem("ocean_logged_in") === "true";
   const loginScreen = document.getElementById("login-screen");
@@ -34,6 +35,26 @@ document.addEventListener("DOMContentLoaded", () => {
     if (appScreen) appScreen.classList.add("hidden");
   }
 });
+
+/* High-Performance Deferred Video Streamer (Allows instant image paint) */
+function initDeferredVideo() {
+  const startVideo = () => {
+    const v = document.querySelector(".home-bg-video");
+    if (v) {
+      const src = v.querySelector("source");
+      if (src && src.dataset.src && (!src.src || src.src === window.location.href)) {
+        src.src = src.dataset.src;
+        v.load();
+        v.play().catch(() => {});
+      }
+    }
+  };
+  if (document.readyState === "complete") {
+    setTimeout(startVideo, 800);
+  } else {
+    window.addEventListener("load", () => setTimeout(startVideo, 800));
+  }
+}
 
 
 
@@ -1601,6 +1622,9 @@ function toggleSolidVolume() {
   renderStudio3D();
 }
 
+/* In-memory client-side 3D volume cache for instant palette/angle switches */
+let _clientVolume3dCache = {};
+
 /* Render Fullscreen 3D Volumetric Surface in Separate Studio Page */
 async function renderStudio3D() {
   const container = document.getElementById("plotly-3d-studio-container");
@@ -1611,7 +1635,7 @@ async function renderStudio3D() {
   const studioAxis    = document.getElementById("studio-axis")?.value  ?? "lat";
   const studioMode    = document.getElementById("studio-mode")?.value  ?? "block";
   const studioDate    = document.getElementById("studio-date")?.value  ?? "";
-  const colorscale    = document.getElementById("studio-colorscale")?.value ?? "Thermal";
+  const colorscale    = document.getElementById("studio-colorscale")?.value ?? "AbyssalMidnight";
   const wallOpacity   = isSolidVolume ? 1.0 : 0.40;
 
   // Keep badges and range inputs in sync
@@ -1632,15 +1656,28 @@ async function renderStudio3D() {
   const gridCol   = isDark ? "rgba(56,189,248,0.12)" : "rgba(2,132,199,0.18)";
   const tickFontColor = isDark ? "#ffffff" : "#034b75";
 
-  container.innerHTML = `<div style="display:flex; align-items:center; justify-content:center; height:100%; color:${isDark ? '#38bdf8' : '#0284c7'}; font-size:14px; font-family:'Plus Jakarta Sans',sans-serif; gap:12px; background:${isDark ? '#060e1f' : 'transparent'}; border-radius:14px;">
-    <i class="fa-solid fa-spinner fa-spin"></i> Reconstructing 3D Thermal Volume (${studioMode.toUpperCase()}) — ${studioDate || "latest"} @ ${studioLat.toFixed(2)}°N, ${studioLon.toFixed(2)}°E...
-  </div>`;
+  const cacheKey = `${studioLat.toFixed(2)}_${studioLon.toFixed(2)}_${studioDate}`;
+  let data = _clientVolume3dCache[cacheKey];
 
-  try {
-    const url = `/api/volume_3d?lat=${studioLat}&lon=${studioLon}${studioDate ? "&date=" + studioDate : ""}`;
-    const res = await fetch(url);
-    const data = await res.json();
-    if (data.status !== "success") throw new Error(data.message || "API error");
+  if (!data) {
+    if (!container.querySelector(".plotly-graph-div")) {
+      container.innerHTML = `<div style="display:flex; align-items:center; justify-content:center; height:100%; color:${isDark ? '#38bdf8' : '#0284c7'}; font-size:14px; font-family:'Plus Jakarta Sans',sans-serif; gap:12px; background:${isDark ? '#060e1f' : 'transparent'}; border-radius:14px;">
+        <i class="fa-solid fa-spinner fa-spin"></i> Reconstructing 3D Thermal Volume (${studioMode.toUpperCase()}) — ${studioDate || "latest"} @ ${studioLat.toFixed(2)}°N, ${studioLon.toFixed(2)}°E...
+      </div>`;
+    }
+
+    try {
+      const url = `/api/volume_3d?lat=${studioLat}&lon=${studioLon}${studioDate ? "&date=" + studioDate : ""}`;
+      const res = await fetch(url);
+      data = await res.json();
+      if (data.status !== "success") throw new Error(data.message || "API error");
+      _clientVolume3dCache[cacheKey] = data;
+    } catch (err) {
+      console.error("3D Studio API error:", err);
+      container.innerHTML = `<div style="color:#ef4444; padding:20px; font-family:'Plus Jakarta Sans',sans-serif;">Reconstruction Error: ${err.message}</div>`;
+      return;
+    }
+  }
 
     // Populate sidebar stats
     const setS = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
@@ -1669,65 +1706,87 @@ async function renderStudio3D() {
     const minLon = lonsAll[0];
     const maxLon = lonsAll[lonsAll.length - 1];
 
-    // 1. Build distinct scientific color palettes: Deep ocean, thermal flare, magma, neon bioluminescent, spectral, cool-warm, viridis
+    // 1. Build distinct dark scientific color palettes with high-contrast thermal gradients
     function buildActiveColorscale(name) {
-      if (name === "Ocean" || name === "Deep Oceanic") {
+      if (name === "AbyssalMidnight" || name === "Ocean" || name === "Deep Oceanic") {
+        // Deep Abyssal Navy -> Slate Indigo -> Deep Aqua -> Electric Cyan
         return [
-          [0.00, "#030712"],
-          [0.20, "#0c4a6e"],
-          [0.40, "#0284c7"],
-          [0.60, "#38bdf8"],
-          [0.80, "#a5f3fc"],
-          [1.00, "#ffffff"]
+          [0.00, "#020617"],
+          [0.22, "#0f172a"],
+          [0.45, "#1e293b"],
+          [0.68, "#0e7490"],
+          [0.85, "#06b6d4"],
+          [1.00, "#38bdf8"]
         ];
-      } else if (name === "Magma") {
+      } else if (name === "ObsidianMagma" || name === "Magma") {
+        // Pitch Black -> Deep Burgundy -> Blood Crimson -> Terracotta -> Molten Gold
         return [
-          [0.00, "#000004"],
-          [0.25, "#51127c"],
-          [0.50, "#b73779"],
-          [0.75, "#fc8961"],
-          [1.00, "#fec087"]
+          [0.00, "#000000"],
+          [0.22, "#3f000e"],
+          [0.45, "#850014"],
+          [0.68, "#b91c1c"],
+          [0.85, "#ea580c"],
+          [1.00, "#f59e0b"]
         ];
-      } else if (name === "Bioluminescent") {
+      } else if (name === "DarkCyberpunk" || name === "Bioluminescent") {
+        // Abyssal Void -> Royal Violet -> Dark Indigo -> Neon Emerald -> High-Voltage Lime
         return [
-          [0.00, "#11002c"],
-          [0.25, "#4c1d95"],
-          [0.50, "#06b6d4"],
-          [0.75, "#10b981"],
+          [0.00, "#050014"],
+          [0.22, "#2e1065"],
+          [0.45, "#3730a3"],
+          [0.68, "#059669"],
+          [0.85, "#10b981"],
           [1.00, "#84cc16"]
         ];
-      } else if (name === "Spectral") {
+      } else if (name === "DeepEmerald") {
+        // Deep Black-Green -> Abyssal Pine -> Dark Jade -> Tropical Sea Green -> Mint Aqua
         return [
-          [0.00, "#581845"],
-          [0.25, "#2980b9"],
-          [0.50, "#27ae60"],
-          [0.75, "#f39c12"],
-          [1.00, "#c0392b"]
+          [0.00, "#02120a"],
+          [0.22, "#064e3b"],
+          [0.45, "#047857"],
+          [0.68, "#059669"],
+          [0.85, "#10b981"],
+          [1.00, "#6ee7b7"]
         ];
-      } else if (name === "CoolWarm") {
+      } else if (name === "DarkAmethyst" || name === "Spectral") {
+        // Velvet Black Plum -> Blackberry Purple -> Dark Magenta -> Spiced Bronze -> Radiant Sun
         return [
-          [0.00, "#1d4ed8"],
-          [0.28, "#60a5fa"],
-          [0.50, "#f1f5f9"],
-          [0.72, "#f87171"],
-          [1.00, "#b91c1c"]
+          [0.00, "#120114"],
+          [0.22, "#4a044e"],
+          [0.45, "#831843"],
+          [0.68, "#be123c"],
+          [0.85, "#c2410c"],
+          [1.00, "#facc15"]
         ];
-      } else if (name === "Viridis") {
+      } else if (name === "GlacierTrench" || name === "CoolWarm") {
+        // Deep Trench Black -> Prussian Blue -> Deep Cobalt -> Glacial Cyan -> Ice Crystal
         return [
-          [0.00, "#440154"],
-          [0.25, "#3b528b"],
-          [0.50, "#21918c"],
-          [0.75, "#5ec962"],
-          [1.00, "#fde725"]
+          [0.00, "#030712"],
+          [0.22, "#0c2340"],
+          [0.45, "#1d4ed8"],
+          [0.68, "#38bdf8"],
+          [0.85, "#a5f3fc"],
+          [1.00, "#f0fdf4"]
+        ];
+      } else if (name === "DarkViridis" || name === "Viridis") {
+        // Ultra-Dark Violet -> Deep Indigo -> Petrol Teal -> Sage Green -> Solar Chartreuse
+        return [
+          [0.00, "#1e002e"],
+          [0.22, "#2d1b69"],
+          [0.45, "#155e75"],
+          [0.68, "#15803d"],
+          [0.85, "#84cc16"],
+          [1.00, "#eab308"]
         ];
       }
-      // Thermal Flare default
+      // Default: Deep Abyssal Midnight
       return [
-        [0.00, "#0a192f"],
-        [0.25, "#1e3a8a"],
-        [0.50, "#06b6d4"],
-        [0.75, "#f59e0b"],
-        [1.00, "#dc2626"]
+        [0.00, "#020617"],
+        [0.22, "#0f172a"],
+        [0.45, "#1e293b"],
+        [0.68, "#0e7490"],
+        [0.85, "#06b6d4"],
+        [1.00, "#38bdf8"]
       ];
     }
 
@@ -2220,7 +2279,6 @@ async function renderStudio3D() {
       }
     };
 
-    container.innerHTML = "";
     const config = {
       responsive: true,
       displayModeBar: true,
@@ -2231,7 +2289,12 @@ async function renderStudio3D() {
         height: 800, width: 1400, scale: 2
       }
     };
-    Plotly.newPlot("plotly-3d-studio-container", plotlyData, layout, config);
+    if (container.querySelector(".plotly-graph-div")) {
+      Plotly.react("plotly-3d-studio-container", plotlyData, layout, config);
+    } else {
+      container.innerHTML = "";
+      Plotly.newPlot("plotly-3d-studio-container", plotlyData, layout, config);
+    }
 
     // Dynamic Compass Needle Rotation on 3D Camera Orbit
     const graphDiv = document.getElementById("plotly-3d-studio-container");

@@ -484,87 +484,106 @@ class OceanEmbedPredictor:
         i_lat = int(np.clip(np.round((lat - LAT_MIN) / SPATIAL_RES), 0, N_LAT - 1))
         j_lon = int(np.clip(np.round((lon - LON_MIN) / SPATIAL_RES), 0, N_LON - 1))
 
-        # Basin-wide vertical temperature profile baseline for wall continuity
-        mean_profile = np.nanmean(pred_3d, axis=(1, 2))
-        for k in range(len(mean_profile)):
-            if np.isnan(mean_profile[k]):
-                mean_profile[k] = 28.5 - 0.024 * float(self.depths[k])
+        if not hasattr(self, "_vol_date_cache"):
+            self._vol_date_cache = {}
 
-        # 1. Continuous Boundary Curtains (Outer Block Walls)
-        south_raw = pred_3d[:, 0, :]    # 5°N, shape (15, 241)
-        north_raw = pred_3d[:, -1, :]   # 30°N, shape (15, 241)
-        west_raw  = pred_3d[:, :, 0]    # 45°E, shape (15, 101)
-        east_raw  = pred_3d[:, :, -1]   # 105°E, shape (15, 101)
+        if date_str not in self._vol_date_cache:
+            # Basin-wide vertical temperature profile baseline for wall continuity
+            mean_profile = np.nanmean(pred_3d, axis=(1, 2))
+            for k in range(len(mean_profile)):
+                if np.isnan(mean_profile[k]):
+                    mean_profile[k] = 28.5 - 0.024 * float(self.depths[k])
 
-        south_clean = self._clean_wall_slice(south_raw, mean_profile)
-        north_clean = self._clean_wall_slice(north_raw, mean_profile)
-        west_clean  = self._clean_wall_slice(west_raw, mean_profile)
-        east_clean  = self._clean_wall_slice(east_raw, mean_profile)
+            # 1. Continuous Boundary Curtains (Outer Block Walls)
+            south_raw = pred_3d[:, 0, :]    # 5°N, shape (15, 241)
+            north_raw = pred_3d[:, -1, :]   # 30°N, shape (15, 241)
+            west_raw  = pred_3d[:, :, 0]    # 45°E, shape (15, 101)
+            east_raw  = pred_3d[:, :, -1]   # 105°E, shape (15, 101)
 
-        # 2. Intersecting Orthocuts at selected probe location
+            south_clean = self._clean_wall_slice(south_raw, mean_profile)
+            north_clean = self._clean_wall_slice(north_raw, mean_profile)
+            west_clean  = self._clean_wall_slice(west_raw, mean_profile)
+            east_clean  = self._clean_wall_slice(east_raw, mean_profile)
+
+            # 3. Downsampled Grids for Top Face (step = 2 for 0.5° responsive streaming)
+            step = 2
+            lats_sub = self.lats[::step]
+            lons_sub = self.lons[::step]
+            sst_sub = raw_surf["sst"][::step, ::step].copy()
+            mask_sub = self.ocean_mask[::step, ::step]
+
+            # 4. Realistic Top Composite Surface (SST for ocean [0-30], Satellite Terrain [31-40] for land)
+            H_sub, W_sub = mask_sub.shape
+            top_composite = np.zeros((H_sub, W_sub), dtype=np.float32)
+            for i_s in range(H_sub):
+                lat_val = lats_sub[i_s]
+                for j_s in range(W_sub):
+                    lon_val = lons_sub[j_s]
+                    if mask_sub[i_s, j_s]:
+                        v = sst_sub[i_s, j_s]
+                        top_composite[i_s, j_s] = 28.5 if (np.isnan(v) or v <= 0.0) else np.clip(v, 2.0, 30.0)
+                    else:
+                        if lat_val >= 27.5 and 74.0 <= lon_val <= 96.0:
+                            elev_frac = min(1.0, (lat_val - 27.5) / 2.5)
+                            top_composite[i_s, j_s] = 38.0 + elev_frac * 2.0
+                        elif lon_val <= 60.0:
+                            top_composite[i_s, j_s] = 36.4 + 0.5 * np.sin(lat_val * 0.4)
+                        elif lon_val >= 92.0:
+                            top_composite[i_s, j_s] = 32.5 + 0.4 * np.sin(lat_val * 0.5)
+                        elif 8.0 <= lat_val <= 22.0 and 72.0 <= lon_val <= 78.0:
+                            top_composite[i_s, j_s] = 33.2
+                        elif 8.0 <= lat_val <= 26.0 and 68.0 <= lon_val <= 90.0:
+                            if lat_val >= 24.0 and lon_val <= 74.0:
+                                top_composite[i_s, j_s] = 36.2
+                            else:
+                                top_composite[i_s, j_s] = 34.0 + (lat_val - 12.0) * 0.08
+                        else:
+                            top_composite[i_s, j_s] = 34.2
+
+            # 5. Extract High-Definition Coastline Vectors
+            try:
+                from scipy.ndimage import binary_dilation
+                dilated = binary_dilation(self.ocean_mask)
+                coast_mask = dilated & (~self.ocean_mask)
+                c_idx = np.argwhere(coast_mask)
+                coastlines = {
+                    "lats": [float(self.lats[idx[0]]) for idx in c_idx],
+                    "lons": [float(self.lons[idx[1]]) for idx in c_idx]
+                }
+            except Exception:
+                coastlines = {"lats": [], "lons": []}
+
+            # 6. D20 Thermocline Depth Map
+            pred_sub = pred_3d[:, ::step, ::step]
+            d20_grid = compute_d20_grid_2d(pred_sub, self.depths, mask_sub)
+            d20_clean = np.where(np.isnan(d20_grid), 95.0, np.round(d20_grid, 1))
+
+            # 8. Bottom Base Slice at 1000m Depth
+            bottom_raw = pred_3d[-1, ::step, ::step]
+            bottom_clean = np.where(np.isnan(bottom_raw), 5.2, np.clip(bottom_raw, 3.5, 7.5))
+
+            self._vol_date_cache[date_str] = {
+                "mean_profile": mean_profile,
+                "south_clean": np.round(south_clean, 2).tolist(),
+                "north_clean": np.round(north_clean, 2).tolist(),
+                "west_clean": np.round(west_clean, 2).tolist(),
+                "east_clean": np.round(east_clean, 2).tolist(),
+                "bottom_clean": np.round(bottom_clean, 2).tolist(),
+                "sub_lats": [float(y) for y in lats_sub],
+                "sub_lons": [float(x) for x in lons_sub],
+                "surface_sst": np.where(np.isnan(sst_sub), 28.0, np.round(sst_sub, 2)).tolist(),
+                "top_composite": np.round(top_composite, 2).tolist(),
+                "coastlines": coastlines,
+                "d20_clean": d20_clean.tolist(),
+            }
+
+        cached = self._vol_date_cache[date_str]
+        mean_profile = cached["mean_profile"]
+
+        # Intersecting Orthocuts at selected probe location
         lat_slice = self._clean_wall_slice(pred_3d[:, i_lat, :], mean_profile)
         lon_slice = self._clean_wall_slice(pred_3d[:, :, j_lon], mean_profile)
 
-        # 3. Downsampled Grids for Top Face (step = 2 for 0.5° responsive streaming)
-        step = 2
-        lats_sub = self.lats[::step]
-        lons_sub = self.lons[::step]
-        sst_sub = raw_surf["sst"][::step, ::step].copy()
-        mask_sub = self.ocean_mask[::step, ::step]
-
-        # 4. Realistic Top Composite Surface (SST for ocean [0-30], Satellite Terrain [31-40] for land)
-        H_sub, W_sub = mask_sub.shape
-        top_composite = np.zeros((H_sub, W_sub), dtype=np.float32)
-        for i_s in range(H_sub):
-            lat_val = lats_sub[i_s]
-            for j_s in range(W_sub):
-                lon_val = lons_sub[j_s]
-                if mask_sub[i_s, j_s]:
-                    v = sst_sub[i_s, j_s]
-                    top_composite[i_s, j_s] = 28.5 if (np.isnan(v) or v <= 0.0) else np.clip(v, 2.0, 30.0)
-                else:
-                    # Geographic satellite terrain values corresponding to compositeColorscale
-                    if lat_val >= 27.5 and 74.0 <= lon_val <= 96.0:
-                        # Himalayas and Tibetan snow peaks
-                        elev_frac = min(1.0, (lat_val - 27.5) / 2.5)
-                        top_composite[i_s, j_s] = 38.0 + elev_frac * 2.0
-                    elif lon_val <= 60.0:
-                        # Arabian Peninsula & Zagros
-                        top_composite[i_s, j_s] = 36.4 + 0.5 * np.sin(lat_val * 0.4)
-                    elif lon_val >= 92.0:
-                        # Indochina & Myanmar lush vegetation
-                        top_composite[i_s, j_s] = 32.5 + 0.4 * np.sin(lat_val * 0.5)
-                    elif 8.0 <= lat_val <= 22.0 and 72.0 <= lon_val <= 78.0:
-                        # Western Ghats lush tropical forest
-                        top_composite[i_s, j_s] = 33.2
-                    elif 8.0 <= lat_val <= 26.0 and 68.0 <= lon_val <= 90.0:
-                        # Peninsular India & Deccan
-                        if lat_val >= 24.0 and lon_val <= 74.0:
-                            top_composite[i_s, j_s] = 36.2 # Thar Desert
-                        else:
-                            top_composite[i_s, j_s] = 34.0 + (lat_val - 12.0) * 0.08
-                    else:
-                        top_composite[i_s, j_s] = 34.2
-
-        # 5. Extract High-Definition Coastline Vectors
-        try:
-            from scipy.ndimage import binary_dilation
-            dilated = binary_dilation(self.ocean_mask)
-            coast_mask = dilated & (~self.ocean_mask)
-            c_idx = np.argwhere(coast_mask)
-            coastlines = {
-                "lats": [float(self.lats[idx[0]]) for idx in c_idx],
-                "lons": [float(self.lons[idx[1]]) for idx in c_idx]
-            }
-        except Exception:
-            coastlines = {"lats": [], "lons": []}
-
-        # 6. D20 Thermocline Depth Map
-        pred_sub = pred_3d[:, ::step, ::step]
-        d20_grid = compute_d20_grid_2d(pred_sub, self.depths, mask_sub)
-        d20_clean = np.where(np.isnan(d20_grid), 95.0, np.round(d20_grid, 1))
-
-        # 7. Pointwise Telemetry and Vertical Profile at Probe Location
         sst_point = float(raw_surf["sst"][i_lat, j_lon]) if np.isfinite(raw_surf["sst"][i_lat, j_lon]) else 28.5
         sss_point = float(raw_surf["sss"][i_lat, j_lon]) if np.isfinite(raw_surf["sss"][i_lat, j_lon]) else 35.0
         ssh_point = float(raw_surf["ssh"][i_lat, j_lon]) if np.isfinite(raw_surf["ssh"][i_lat, j_lon]) else 0.05
@@ -575,42 +594,32 @@ class OceanEmbedPredictor:
             for k, d in enumerate(self.depths)
         ]
 
-        # 8. Bottom Base Slice at 1000m Depth (fully encloses the 3D block underneath)
-        bottom_raw = pred_3d[-1, ::step, ::step]  # (51, 121)
-        bottom_clean = np.where(np.isnan(bottom_raw), 5.2, np.clip(bottom_raw, 3.5, 7.5))
-
         return {
             "status": "success",
             "date": date_str,
             "selected_lat": float(self.lats[i_lat]),
             "selected_lon": float(self.lons[j_lon]),
             "depths": [float(d) for d in self.depths],
-            # Support both naming conventions to guarantee frontend compatibility
             "lats": [float(y) for y in self.lats],
             "lons": [float(x) for x in self.lons],
             "lats_all": [float(y) for y in self.lats],
             "lons_all": [float(x) for x in self.lons],
-            "sub_lats": [float(y) for y in lats_sub],
-            "sub_lons": [float(x) for x in lons_sub],
-            "lats_sub": [float(y) for y in lats_sub],
-            "lons_sub": [float(x) for x in lons_sub],
-            # Wall Curtain Slices
-            "south_slice": np.round(south_clean, 2).tolist(),
-            "north_slice": np.round(north_clean, 2).tolist(),
-            "west_slice": np.round(west_clean, 2).tolist(),
-            "east_slice": np.round(east_clean, 2).tolist(),
-            # Base floor
-            "bottom_slice": np.round(bottom_clean, 2).tolist(),
-            # Cross-section probe slices
+            "sub_lats": cached["sub_lats"],
+            "sub_lons": cached["sub_lons"],
+            "lats_sub": cached["sub_lats"],
+            "lons_sub": cached["sub_lons"],
+            "south_slice": cached["south_clean"],
+            "north_slice": cached["north_clean"],
+            "west_slice": cached["west_clean"],
+            "east_slice": cached["east_clean"],
+            "bottom_slice": cached["bottom_clean"],
             "lat_slice": np.round(lat_slice, 2).tolist(),
             "lon_slice": np.round(lon_slice, 2).tolist(),
-            # Surfaces
-            "surface_sst": np.where(np.isnan(sst_sub), 28.0, np.round(sst_sub, 2)).tolist(),
-            "top_composite_surface": np.round(top_composite, 2).tolist(),
-            "coastlines": coastlines,
-            "d20_depth_map": d20_clean.tolist(),
-            "d20_thermocline": d20_clean.tolist(),
-            # Telemetry
+            "surface_sst": cached["surface_sst"],
+            "top_composite_surface": cached["top_composite"],
+            "coastlines": cached["coastlines"],
+            "d20_depth_map": cached["d20_clean"],
+            "d20_thermocline": cached["d20_clean"],
             "surface_telemetry": {
                 "sst_c": round(sst_point, 2),
                 "sss_psu": round(sss_point, 2),

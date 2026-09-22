@@ -4615,7 +4615,7 @@ select:focus {
   transform: translate3d(0, 0, 0);
   will-change: transform;
   contain: strict;
-  background: #176a91;
+  background: #061626 url('/video/poster.jpg') center center / cover no-repeat;
 }
 
 .home-bg-video {

@@ -12,7 +12,7 @@
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
 <!-- Leaflet CSS -->
 <link href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" rel="stylesheet"/>
-<link href="/static/styles.css?v=251" rel="stylesheet"/>
+<link href="/static/styles.css?v=252" rel="stylesheet"/>
 </head>
 <body>
 <!-- Screen 1: Interactive Ocean Login Gateway -->
@@ -140,8 +140,8 @@
 <div class="page-view active" id="home-page">
 <!-- Dynamic Cinematic Video Background -->
 <div class="home-video-container">
-<video autoplay class="home-bg-video" loop muted playsinline preload="metadata" poster="/video/poster.jpg">
-<source src="/video/244754.mp4" type="video/mp4"/>
+<video class="home-bg-video" loop muted playsinline preload="none" poster="/video/poster.jpg">
+<source data-src="/video/244754.mp4" type="video/mp4"/>
 </video>
 <div class="home-video-overlay"></div>
 </div>
@@ -698,13 +698,13 @@
         <div class="studio-control-group">
           <label><i class="fa-solid fa-palette"></i> Palette</label>
           <select id="studio-colorscale" onchange="renderStudio3D()">
-            <option value="Ocean" selected>Deep Oceanic (Navy / Aqua / Seafoam White)</option>
-            <option value="Thermal">Thermal Flare (Sapphire to Lava Crimson)</option>
-            <option value="Magma">Magma (Volcanic High Contrast)</option>
-            <option value="Bioluminescent">Bioluminescent (Neon Violet / Cyan / Lime)</option>
-            <option value="Spectral">Spectral (Multi-Band Rainbow)</option>
-            <option value="CoolWarm">Cool-Warm (Divergent Balance)</option>
-            <option value="Viridis">Viridis (Perceptual Uniform)</option>
+            <option value="AbyssalMidnight" selected>Abyssal Midnight (Dark Slate to Electric Cyan)</option>
+            <option value="ObsidianMagma">Obsidian Magma (Pitch Black to Blood Crimson)</option>
+            <option value="DarkCyberpunk">Dark Cyberpunk (Deep Violet to Toxic Lime)</option>
+            <option value="DeepEmerald">Deep Emerald (Abyssal Pine to Mint Aqua)</option>
+            <option value="DarkAmethyst">Dark Amethyst (Black Plum to Sunset Gold)</option>
+            <option value="GlacierTrench">Glacier Trench (Dark Prussian Blue to Ice Crystal)</option>
+            <option value="DarkViridis">Dark Viridis (Deep Petrol to Solar Chartreuse)</option>
           </select>
         </div>
 
@@ -1663,6 +1663,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
-<script src="/static/app.js?v=251"></script>
+<script src="/static/app.js?v=252"></script>
 </div></body>
 </html>
