@@ -7966,3 +7966,630 @@ select:focus {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* ============================================================
+   Interactive Marine Heatwave Workstation & Agro Simulator
+   ============================================================ */
+
+/* MHW Presets & Controls Strip */
+.mhw-preset-btn {
+  background: #f8fafc;
+  border: 1.5px solid #cbd5e1;
+  color: #334155;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.mhw-preset-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.mhw-preset-btn.active {
+  background: #0284c7;
+  border-color: #0284c7;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
+}
+
+.mcs-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.mhw-threshold-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  padding: 4px 12px;
+  border-radius: 10px;
+}
+
+.mhw-threshold-control label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mhw-threshold-control input[type="range"] {
+  width: 90px;
+  accent-color: #ef4444;
+  cursor: pointer;
+}
+
+.mhw-thresh-val {
+  font-size: 12px;
+  font-weight: 800;
+  color: #ef4444;
+  min-width: 46px;
+}
+
+.btn-action-pulse {
+  background: #ef4444;
+  color: #ffffff;
+  border: none;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.35);
+  transition: all 0.2s ease;
+}
+
+.btn-action-pulse:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
+
+/* MHW Workstation 2-Column Split */
+.mhw-workstation-layout {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.mhw-map-column {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 4px 18px rgba(0, 70, 140, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mhw-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mhw-ch-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 2px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mhw-ch-sub {
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+.mhw-map-container {
+  position: relative;
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1.5px solid #cbd5e1;
+}
+
+.mhw-map-legend {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(8px);
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 10.5px;
+  color: #334155;
+  z-index: 500;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
+.mml-title {
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.mml-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.mml-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 0 3px rgba(0,0,0,0.3);
+}
+
+.dot-cat4 { background: #a855f7; }
+.dot-cat3 { background: #ef4444; }
+.dot-cat2 { background: #f97316; }
+.dot-cat1 { background: #eab308; }
+.dot-custom { background: #06b6d4; }
+
+/* Right Column Analytics */
+.mhw-analytics-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mhw-active-zone-card {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 18px 22px;
+  box-shadow: 0 4px 18px rgba(0, 70, 140, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mhw-azc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.mhw-azc-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 3px 0;
+}
+
+.mhw-azc-coords {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.mhw-azc-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  padding: 8px 0;
+  border-top: 1.5px solid #f1f5f9;
+  border-bottom: 1.5px solid #f1f5f9;
+}
+
+.mhw-azc-stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.mhw-azc-stat .mhw-lbl {
+  font-size: 10px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.mhw-azc-stat strong {
+  font-size: 15px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.mhw-azc-advisory {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #fef2f2;
+  border: 1.5px solid #fecaca;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: #991b1b;
+  line-height: 1.45;
+}
+
+.mhw-azc-advisory i {
+  font-size: 16px;
+  color: #dc2626;
+  margin-top: 2px;
+}
+
+.mhw-chart-panel {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 18px 22px;
+  box-shadow: 0 4px 18px rgba(0, 70, 140, 0.04);
+}
+
+.mcp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.mcp-title {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mcp-sub {
+  font-size: 11px;
+  color: #64748b;
+  display: block;
+}
+
+.mcp-toggles {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-xs {
+  font-size: 10.5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.mcp-toggles .btn-xs.active {
+  background: #0284c7;
+  color: #ffffff;
+  border-color: #0284c7;
+}
+
+.mcp-canvas-wrap {
+  position: relative;
+  width: 100%;
+  height: 205px;
+}
+
+.mhw-zones-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 16px 0 12px 0;
+}
+
+.mhw-zones-header-row h4 {
+  font-size: 16px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mzhr-sub {
+  font-size: 12px;
+  color: #0284c7;
+  font-weight: 600;
+}
+
+/* Agro Simulator Bar */
+.agro-sim-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 14px 22px;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 18px rgba(0, 70, 140, 0.04);
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.asb-left {
+  flex: 1;
+  min-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.asb-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.asb-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.agro-sim-badge {
+  font-size: 11.5px;
+  font-weight: 800;
+  padding: 2px 10px;
+  border-radius: 12px;
+  background: #fef2f2;
+  color: #ef4444;
+  border: 1px solid #fecaca;
+}
+
+.asb-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.asb-slider-bound {
+  font-size: 10.5px;
+  color: #64748b;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.asb-slider-row input[type="range"] {
+  flex: 1;
+  accent-color: #ef4444;
+  cursor: pointer;
+  height: 6px;
+}
+
+.asb-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.asb-presets-lbl {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.asb-presets-group {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.btn-preset {
+  background: #f8fafc;
+  border: 1.5px solid #cbd5e1;
+  color: #334155;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-preset:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.btn-preset.active {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(22, 163, 74, 0.35);
+}
+
+/* Agro Zone Filter Strip */
+.agro-zone-filter-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.azf-label {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.azf-pills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.azf-btn {
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  color: #334155;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.azf-btn:hover {
+  border-color: #16a34a;
+  color: #16a34a;
+}
+
+.azf-btn.active {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.3);
+}
+
+/* Agro Zone Advisory Card */
+.agro-zone-advisory-card {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 18px 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 18px rgba(0, 70, 140, 0.04);
+}
+
+.azac-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1.5px solid #f1f5f9;
+}
+
+.azac-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.azac-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: #0284c7;
+}
+
+.azac-header h4 {
+  font-size: 16px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+}
+
+.azac-risk-pill {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 12px;
+  border-radius: 12px;
+  background: #dcfce7;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+.azac-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.azac-col {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.azac-col.full-width {
+  grid-column: span 2;
+  margin-top: 4px;
+  background: #f8fafc;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border-left: 3.5px solid #16a34a;
+}
+
+.azac-lbl {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.azac-col strong {
+  font-size: 13.5px;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.azac-col p {
+  font-size: 12.5px;
+  color: #334155;
+  margin: 2px 0 0 0;
+  line-height: 1.5;
+}
+
+/* Custom pulsing map marker for MHW */
+.mhw-pin-pulse {
+  position: relative;
+  width: 24px;
+  height: 24px;
+}
+
+.mhw-pin-ring {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  animation: mhwPulse 2s infinite ease-out;
+}
+
+@keyframes mhwPulse {
+  0% { transform: scale(0.6); opacity: 0.9; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+@media (max-width: 1100px) {
+  .mhw-workstation-layout {
+    grid-template-columns: 1fr;
+  }
+  .azac-body {
+    grid-template-columns: 1fr;
+  }
+  .azac-col.full-width {
+    grid-column: span 1;
+  }
+}

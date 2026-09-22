@@ -839,15 +839,34 @@ class OceanEmbedPredictor:
 
         return output_path
 
-    def get_mhw_analytics(self, date: Optional[str] = None) -> Dict[str, Any]:
+    def get_mhw_analytics(
+        self,
+        date: Optional[str] = None,
+        custom_lat: Optional[float] = None,
+        custom_lon: Optional[float] = None,
+        custom_threshold: Optional[float] = None
+    ) -> Dict[str, Any]:
         """
         Marine Heatwave (MHW) Subsurface Thermal Stress & Penetration Analytics
         for ecologically sensitive and disaster-prone North Indian Ocean ecosystems.
         Evaluated per Hobday et al. (2016) / INCOIS MHW Advisory Framework.
+        Supports custom coordinates and custom bleaching threshold overrides.
         """
         date_str = self._resolve_date(date)
 
-        ecozones = [
+        ecozones = []
+        if custom_lat is not None and custom_lon is not None:
+            ecozones.append({
+                "id": "custom",
+                "name": f"Interactive Point ({float(custom_lat):.2f}°N, {float(custom_lon):.2f}°E)",
+                "basin": "User Selected Coordinate",
+                "lat": float(custom_lat),
+                "lon": float(custom_lon),
+                "ecosystem": "Dynamic In-Situ Spatial Extraction Target",
+                "bleaching_threshold_c": float(custom_threshold) if custom_threshold else 29.0,
+            })
+
+        ecozones.extend([
             {
                 "id": "lakshadweep",
                 "name": "Lakshadweep Archipelago",
@@ -883,8 +902,26 @@ class OceanEmbedPredictor:
                 "lon": 69.4,
                 "ecosystem": "Mangrove Fringe, Intertidal Corals",
                 "bleaching_threshold_c": 28.8,
+            },
+            {
+                "id": "malvan",
+                "name": "Malvan Marine Sanctuary (Sindhudurg)",
+                "basin": "Central Arabian Sea Coast",
+                "lat": 16.0,
+                "lon": 73.4,
+                "ecosystem": "Fringing Coral Reefs & Coastal Fisheries",
+                "bleaching_threshold_c": 28.6,
+            },
+            {
+                "id": "netrani",
+                "name": "Netrani Island Coral Habitat (Murudeshwar)",
+                "basin": "Eastern Arabian Sea",
+                "lat": 14.0,
+                "lon": 74.3,
+                "ecosystem": "High-Diversity Brain Coral & Gorgonian Habitat",
+                "bleaching_threshold_c": 28.7,
             }
-        ]
+        ])
 
         zone_results = []
         max_penetration = 0.0
@@ -895,14 +932,16 @@ class OceanEmbedPredictor:
             prof = pred.get("profile", [])
             diag = pred.get("diagnostics", {})
 
-            sst = float(prof[0]["temperature_c"]) if prof and prof[0].get("temperature_c") is not None else 28.5
+            sst = 28.0
             temp_50m = 26.0
             for pt in prof:
-                if pt.get("depth_m") == 50.0 and pt.get("temperature_c") is not None:
+                if pt["depth_m"] == 0.0 and pt.get("temperature_c") is not None:
+                    sst = float(pt["temperature_c"])
+                elif pt["depth_m"] == 50.0 and pt.get("temperature_c") is not None:
                     temp_50m = float(pt["temperature_c"])
                     break
 
-            thresh = z["bleaching_threshold_c"]
+            thresh = float(custom_threshold) if custom_threshold else z["bleaching_threshold_c"]
             anomaly = round(sst - thresh, 2)
 
             # Subsurface heat penetration: maximum depth where temperature >= (thresh - 1.0°C)
@@ -959,9 +998,9 @@ class OceanEmbedPredictor:
                 "risk_level": risk_level,
                 "degree_heating_days": dhd,
                 "thermocline_d20_m": diag.get("thermocline_d20_m", 70.0),
-                "profile_sample": [
-                    {"depth_m": p["depth_m"], "temp_c": p["temperature_c"]}
-                    for p in prof[:8]
+                "full_profile": [
+                    {"depth_m": float(p["depth_m"]), "temp_c": float(p["temperature_c"])}
+                    for p in prof if p.get("temperature_c") is not None
                 ]
             })
 

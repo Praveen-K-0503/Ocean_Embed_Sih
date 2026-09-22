@@ -247,11 +247,14 @@ def get_dates_api(mode: str = Query(None, description="Dataset mode")):
 
 
 @app.get("/api/agro_analytics")
-def get_agro_analytics_api(date: str = Query(None, description="Date YYYY-MM-DD")):
+def get_agro_analytics_api(
+    date: str = Query(None, description="Date YYYY-MM-DD"),
+    simulated_sst_anomaly: float = Query(None, description="Simulated SST anomaly in °C (-2.0 to +3.0)")
+):
     """
-    Synthetic Ocean-Agriculture Impact Analytics for North Indian Ocean basin.
+    Ocean-Agriculture Impact Analytics for North Indian Ocean basin.
     Correlates SST anomalies with monsoon onset, NDVI, crop yield, and soil moisture
-    for major Indian agricultural zones. Based on known SST-monsoon teleconnections.
+    for major Indian agricultural zones. Supports interactive "What-If" climate simulations.
     """
     import random, math
     # Use date to generate slightly varying but realistic synthetic data
@@ -313,10 +316,27 @@ def get_agro_analytics_api(date: str = Query(None, description="Date YYYY-MM-DD"
     # Current (date-based) overall KPIs
     date_month = int((date or "2024-06-01").split("-")[1]) - 1 if date else 5
     overall_sst_anomaly = sst_anomaly[date_month]
-    monsoon_shift = round(-overall_sst_anomaly * 5.2 + rng.uniform(-0.5, 0.5), 1)
-    overall_ndvi = round(0.58 + overall_sst_anomaly * 0.05 + rng.uniform(-0.02, 0.02), 3)
-    kharif_yield = round(overall_sst_anomaly * 4.8 + rng.uniform(-0.5, 0.8), 1)
-    soil_moisture_now = soil_moisture[date_month]
+
+    # Apply interactive simulation override if requested by user
+    if simulated_sst_anomaly is not None:
+        overall_sst_anomaly = round(float(simulated_sst_anomaly), 2)
+        monsoon_shift = round(-overall_sst_anomaly * 5.2, 1)
+        kharif_yield = round(overall_sst_anomaly * 4.8 if abs(overall_sst_anomaly) < 1.4 else -abs(overall_sst_anomaly) * 3.8, 1)
+        soil_moisture_now = round(max(0.12, min(0.95, 0.55 - overall_sst_anomaly * 0.16)), 3)
+        overall_ndvi = round(max(0.25, min(0.85, 0.58 + overall_sst_anomaly * 0.04)), 3)
+        is_simulated = True
+
+        for z in zone_summary:
+            z["sst_anomaly"] = overall_sst_anomaly
+            z["rainfall_dev_pct"] = round(overall_sst_anomaly * -21.0, 1)
+            z["yield_pct"] = round(kharif_yield + (0.8 if "Konkan" in z["zone"] or "Kerala" in z["zone"] else -1.2), 1)
+            z["risk"] = "High" if abs(overall_sst_anomaly) >= 1.5 else ("Medium" if abs(overall_sst_anomaly) >= 0.8 else "Low")
+    else:
+        monsoon_shift = round(-overall_sst_anomaly * 5.2 + rng.uniform(-0.5, 0.5), 1)
+        overall_ndvi = round(0.58 + overall_sst_anomaly * 0.05 + rng.uniform(-0.02, 0.02), 3)
+        kharif_yield = round(overall_sst_anomaly * 4.8 + rng.uniform(-0.5, 0.8), 1)
+        soil_moisture_now = soil_moisture[date_month]
+        is_simulated = False
 
     return JSONResponse(content={
         "status": "success",
@@ -362,13 +382,24 @@ def export_netcdf_api(date: str = Query(None, description="Date YYYY-MM-DD")):
 
 
 @app.get("/api/mhw_analytics")
-def get_mhw_analytics_api(date: str = Query(None, description="Date YYYY-MM-DD")):
+def get_mhw_analytics_api(
+    date: str = Query(None, description="Date YYYY-MM-DD"),
+    lat: float = Query(None, description="Custom latitude"),
+    lon: float = Query(None, description="Custom longitude"),
+    threshold_c: float = Query(None, description="Bleaching threshold override in °C")
+):
     """
     Marine Heatwave (MHW) Subsurface Heat Penetration & Bleaching Alert API (Theme: Disaster Management).
     Evaluates vertical thermal penetration (0–100m) and Hobday et al. (2016) categories for coral/fishery disaster zones.
+    Supports interactive custom coordinates and user-defined bleaching thresholds.
     """
     try:
-        res = get_predictor().get_mhw_analytics(date=date)
+        res = get_predictor().get_mhw_analytics(
+            date=date,
+            custom_lat=lat,
+            custom_lon=lon,
+            custom_threshold=threshold_c
+        )
         return JSONResponse(content=res)
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})

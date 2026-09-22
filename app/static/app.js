@@ -323,12 +323,20 @@ function showPage(pageId) {
     const btn = document.getElementById("nav-btn-mhw");
     if (btn) btn.classList.add("active");
     window.scrollTo({ top: 0, behavior: "smooth" });
-    setTimeout(() => { loadMhwAnalytics(); }, 50);
+    setTimeout(() => {
+      if (!mhwMapInitialized) {
+        initMhwMap();
+        mhwMapInitialized = true;
+      } else if (mhwMap) {
+        mhwMap.invalidateSize();
+      }
+      loadMhwAnalytics();
+    }, 60);
   } else if (pageId === "agro-page") {
     const btn = document.getElementById("nav-btn-agro");
     if (btn) btn.classList.add("active");
     window.scrollTo({ top: 0, behavior: "smooth" });
-    setTimeout(() => { loadAgroAnalytics(); }, 50);
+    setTimeout(() => { loadAgroAnalytics(); }, 60);
   }
 }
 
@@ -2353,266 +2361,554 @@ function exportNetCDF() {
   window.location.href = `/api/export_netcdf?date=${encodeURIComponent(date)}`;
 }
 
-async function loadMhwAnalytics() {
+/* ============================================================
+   Interactive Marine Heatwave (MHW) Subsurface Stress Workstation
+   ============================================================ */
+let mhwMap = null;
+let mhwMapInitialized = false;
+let mhwMarkers = {};
+let mhwCustomMarker = null;
+let mhwDepthChart = null;
+let currentMhwData = null;
+let activeMhwSanctuaryId = "lakshadweep";
+let currentMhwThreshold = 28.5;
+let currentMhwZoom = 200;
+let isMhwPulseSimulated = false;
+
+function initMhwMap() {
+  const container = document.getElementById("mhw-leaflet-map");
+  if (!container || mhwMap) return;
+
+  // Center on North Indian Ocean
+  mhwMap = L.map("mhw-leaflet-map", {
+    center: [13.5, 77.0],
+    zoom: 5,
+    minZoom: 4,
+    maxZoom: 10,
+    zoomControl: true,
+  });
+
+  // Esri Ocean Basemap & Reference Labels
+  L.tileLayer(
+    "https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}",
+    {
+      attribution: "Tiles &copy; Esri, GEBCO, NOAA, National Geographic",
+      maxZoom: 13,
+    }
+  ).addTo(mhwMap);
+
+  L.tileLayer(
+    "https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}",
+    {
+      attribution: "",
+      maxZoom: 13,
+      opacity: 0.85,
+    }
+  ).addTo(mhwMap);
+
+  // Click on map drops pin and extracts subsurface profile in real-time
+  mhwMap.on("click", (e) => {
+    const lat = e.latlng.lat;
+    const lon = e.latlng.lng;
+    if (lat < 4.0 || lat > 30.0 || lon < 45.0 || lon > 105.0) {
+      alert("Please click within the North Indian Ocean observation domain (4°N–30°N, 45°E–105°E).");
+      return;
+    }
+    onMhwMapClick(lat, lon);
+  });
+}
+
+async function onMhwMapClick(lat, lon) {
+  if (!mhwMap) return;
+
+  // Drop or move custom pin
+  if (mhwCustomMarker) {
+    mhwCustomMarker.setLatLng([lat, lon]);
+  } else {
+    const customIcon = L.divIcon({
+      className: "mhw-custom-pin-wrap",
+      html: `
+        <div style="position:relative; width:28px; height:28px; display:flex; align-items:center; justify-content:center;">
+          <div style="position:absolute; width:28px; height:28px; border-radius:50%; background:rgba(6, 182, 212, 0.4); animation: mhwPulse 1.8s infinite ease-out;"></div>
+          <div style="width:14px; height:14px; border-radius:50%; background:#06b6d4; border:2.5px solid #ffffff; box-shadow:0 0 10px #06b6d4;"></div>
+        </div>
+      `,
+      iconSize: [28, 28],
+      iconAnchor: [14, 14],
+    });
+    mhwCustomMarker = L.marker([lat, lon], { icon: customIcon }).addTo(mhwMap);
+  }
+
+  mhwCustomMarker.bindPopup(`<strong>Interactive Target</strong><br>${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E<br><small>Reconstructing 0–1000m thermal depth...</small>`).openPopup();
+
+  // Load custom point analytics
+  await loadMhwAnalytics("custom", lat, lon, currentMhwThreshold);
+}
+
+function resetMhwMapView() {
+  if (mhwMap) {
+    mhwMap.setView([13.5, 77.0], 5, { animate: true });
+  }
+}
+
+async function loadMhwAnalytics(targetZoneId, customLat, customLon, threshold) {
   const container = document.getElementById("mhw-zones-container");
-  if (!container) return;
-  const date = (currentPrediction && currentPrediction.date) || (state && state.currentDate) || (document.getElementById("input-date") && document.getElementById("input-date").value) || "2024-06-01";
+  const thresh = threshold !== undefined ? threshold : currentMhwThreshold;
+
+  let url = `/api/mhw_analytics?threshold_c=${thresh}`;
+  if (customLat !== undefined && customLon !== undefined) {
+    url += `&lat=${customLat}&lon=${customLon}`;
+  }
 
   try {
-    const res = await fetch(`/api/mhw_analytics?date=${encodeURIComponent(date)}`);
+    const res = await fetch(url);
     const data = await res.json();
     if (data.status !== "success") return;
 
+    currentMhwData = data;
+
+    // Update KPI pills
     const maxPenEl = document.getElementById("mhw-max-pen");
     if (maxPenEl) maxPenEl.textContent = `${data.max_subsurface_penetration_m} m`;
 
     const severeEl = document.getElementById("mhw-severe-count");
     if (severeEl) severeEl.textContent = `${data.severe_zones_count} Active`;
 
-    container.innerHTML = data.zones.map(z => `
-      <div class="mhw-zone-card">
-        <div class="mhw-zc-header">
-          <div>
-            <h4 class="mhw-zc-name">${z.name}</h4>
-            <span class="mhw-zc-basin"><i class="fa-solid fa-location-dot"></i> ${z.basin} (${z.lat}°N, ${z.lon}°E)</span>
-          </div>
-          <span class="mhw-category-badge" style="background:${z.category_color}18; color:${z.category_color}; border: 1.5px solid ${z.category_color};">
-            ${z.category}
-          </span>
-        </div>
-        <p class="mhw-zc-eco"><i class="fa-solid fa-leaf"></i> <strong>Ecosystem:</strong> ${z.ecosystem}</p>
-        
-        <div class="mhw-stats-grid">
-          <div class="mhw-stat">
-            <span class="mhw-stat-lbl">Surface SST</span>
-            <strong>${z.sst_c} °C</strong>
-          </div>
-          <div class="mhw-stat">
-            <span class="mhw-stat-lbl">50m Depth Temp</span>
-            <strong>${z.temp_50m_c} °C</strong>
-          </div>
-          <div class="mhw-stat">
-            <span class="mhw-stat-lbl">Thermal Anomaly</span>
-            <strong style="color:${z.thermal_anomaly_c > 0 ? '#ef4444' : '#10b981'};">
-              ${z.thermal_anomaly_c > 0 ? '+' : ''}${z.thermal_anomaly_c} °C
-            </strong>
-          </div>
-          <div class="mhw-stat">
-            <span class="mhw-stat-lbl">Heat Stress (DHD)</span>
-            <strong>${z.degree_heating_days} °C·days</strong>
-          </div>
-        </div>
+    const threshBadge = document.getElementById("mhw-active-threshold-badge");
+    if (threshBadge) threshBadge.textContent = `${thresh.toFixed(1)} °C`;
 
-        <div class="mhw-penetration-block">
-          <div class="mhw-pb-header">
-            <span><i class="fa-solid fa-water"></i> Subsurface Heat Penetration (≥ 28°C Threshold)</span>
-            <strong>${z.heat_penetration_depth_m} m deep</strong>
-          </div>
-          <div class="mhw-bar-track">
-            <div class="mhw-bar-fill" style="width: ${Math.min(100, Math.max(8, (z.heat_penetration_depth_m / 100) * 100))}%; background: ${z.category_color};"></div>
-          </div>
-        </div>
+    const threshVal = document.getElementById("mhw-thresh-val");
+    if (threshVal) threshVal.textContent = `${thresh.toFixed(1)} °C`;
 
-        <div class="mhw-advisory-footer" style="background:${z.category_color}0d; border-left: 3px solid ${z.category_color};">
-          <i class="fa-solid fa-bell" style="color:${z.category_color};"></i>
-          <span><strong>Advisory:</strong> ${z.risk_level}</span>
-        </div>
-      </div>
-    `).join("");
+    // Map markers
+    if (mhwMap) {
+      data.zones.forEach((z) => {
+        if (z.id === "custom") return;
+        if (!mhwMarkers[z.id]) {
+          const catColor = z.category_color || "#ef4444";
+          const icon = L.divIcon({
+            className: "mhw-marker-wrap",
+            html: `
+              <div style="position:relative; width:28px; height:28px; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+                <div style="position:absolute; width:28px; height:28px; border-radius:50%; background:${catColor}33; animation: mhwPulse 2s infinite ease-out;"></div>
+                <div style="width:14px; height:14px; border-radius:50%; background:${catColor}; border:2.5px solid #ffffff; box-shadow:0 0 8px ${catColor};"></div>
+              </div>
+            `,
+            iconSize: [28, 28],
+            iconAnchor: [14, 14],
+          });
+
+          const m = L.marker([z.lat, z.lon], { icon }).addTo(mhwMap);
+          m.bindTooltip(`<strong>${z.name}</strong><br>${z.category} · Penetration: ${z.heat_penetration_depth_m}m`, {
+            direction: "top",
+            offset: [0, -10],
+          });
+          m.on("click", () => selectMhwSanctuary(z.id));
+          mhwMarkers[z.id] = m;
+        } else {
+          mhwMarkers[z.id].setTooltipContent(`<strong>${z.name}</strong><br>${z.category} · Penetration: ${z.heat_penetration_depth_m}m`);
+        }
+      });
+    }
+
+    // Populate comparison cards grid
+    if (container) {
+      const regularZones = data.zones.filter(z => z.id !== "custom");
+      container.innerHTML = regularZones.map((z) => {
+        const isSelected = z.id === (targetZoneId || activeMhwSanctuaryId);
+        return `
+          <div class="mhw-zone-card" style="${isSelected ? 'border-color:#0284c7; box-shadow:0 0 0 2px rgba(2, 132, 199, 0.25);' : ''} cursor:pointer;" onclick="selectMhwSanctuary('${z.id}')">
+            <div class="mhw-zc-header">
+              <div>
+                <h4 class="mhw-zc-name">${z.name}</h4>
+                <span class="mhw-zc-basin"><i class="fa-solid fa-location-dot"></i> ${z.basin} (${z.lat.toFixed(1)}°N, ${z.lon.toFixed(1)}°E)</span>
+              </div>
+              <span class="mhw-category-badge" style="background:${z.category_color}18; color:${z.category_color}; border: 1.5px solid ${z.category_color};">
+                ${z.category}
+              </span>
+            </div>
+            <p class="mhw-zc-eco"><i class="fa-solid fa-leaf"></i> <strong>Ecosystem:</strong> ${z.ecosystem}</p>
+            
+            <div class="mhw-stats-grid">
+              <div class="mhw-stat">
+                <span class="mhw-stat-lbl">Surface SST</span>
+                <strong>${z.sst_c} °C</strong>
+              </div>
+              <div class="mhw-stat">
+                <span class="mhw-stat-lbl">50m Depth Temp</span>
+                <strong>${z.temp_50m_c} °C</strong>
+              </div>
+              <div class="mhw-stat">
+                <span class="mhw-stat-lbl">Thermal Anomaly</span>
+                <strong style="color:${z.thermal_anomaly_c > 0 ? '#ef4444' : '#10b981'};">
+                  ${z.thermal_anomaly_c > 0 ? '+' : ''}${z.thermal_anomaly_c} °C
+                </strong>
+              </div>
+              <div class="mhw-stat">
+                <span class="mhw-stat-lbl">Heat Stress</span>
+                <strong>${z.degree_heating_days} °C·days</strong>
+              </div>
+            </div>
+
+            <div class="mhw-penetration-block">
+              <div class="mhw-pb-header">
+                <span><i class="fa-solid fa-water"></i> Subsurface Heat Penetration (≥ ${thresh.toFixed(1)}°C)</span>
+                <strong>${z.heat_penetration_depth_m} m deep</strong>
+              </div>
+              <div class="mhw-bar-track">
+                <div class="mhw-bar-fill" style="width: ${Math.min(100, Math.max(8, (z.heat_penetration_depth_m / 100) * 100))}%; background: ${z.category_color};"></div>
+              </div>
+            </div>
+
+            <div class="mhw-advisory-footer" style="background:${z.category_color}0d; border-left: 3px solid ${z.category_color};">
+              <i class="fa-solid fa-bell" style="color:${z.category_color};"></i>
+              <span><strong>Advisory:</strong> ${z.risk_level}</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    // Select active sanctuary
+    const toSelect = targetZoneId || activeMhwSanctuaryId || "lakshadweep";
+    selectMhwSanctuary(toSelect);
   } catch (err) {
     console.error("Error loading MHW analytics:", err);
   }
 }
 
-function exportData() {
-  if (!currentPrediction) {
-    alert("No prediction data available to export. Please select an ocean coordinate first.");
-    return;
-  }
-  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(currentPrediction, null, 2));
-  const downloadAnchor = document.createElement("a");
-  downloadAnchor.setAttribute("href", dataStr);
-  downloadAnchor.setAttribute("download", `OceanEmbed_Profile_${currentPrediction.grid_latitude}N_${currentPrediction.grid_longitude}E.json`);
-  document.body.appendChild(downloadAnchor);
-  downloadAnchor.click();
-  downloadAnchor.remove();
-}
+function selectMhwSanctuary(zoneId) {
+  if (!currentMhwData || !currentMhwData.zones) return;
+  const zone = currentMhwData.zones.find(z => z.id === zoneId) || currentMhwData.zones[0];
+  if (!zone) return;
 
-/* Operational CF-Compliant CSV Exporter for Numerical Ocean Models */
-function exportCSV() {
-  if (!currentPrediction || !currentPrediction.profile) {
-    alert("No active prediction profile to export. Please select an ocean point first.");
-    return;
-  }
-  const p = currentPrediction;
-  const diag = p.diagnostics || {};
-  const ch = diag.cyclone_hazard || {};
+  activeMhwSanctuaryId = zone.id;
 
-  let csv = [];
-  csv.push("# OceanEmbed Operational Subsurface Profile (SIH PS 26066 - MoES / INCOIS)");
-  csv.push(`# Date: ${p.date}`);
-  csv.push(`# Latitude: ${p.grid_latitude} N, Longitude: ${p.grid_longitude} E`);
-  csv.push(`# Data Source: ${p.data_source || 'Copernicus GLORYS12V1'}`);
-  csv.push(`# Thermocline Depth (D20): ${diag.thermocline_d20_m ?? 'N/A'} m`);
-  csv.push(`# Mixed Layer Depth (MLD): ${diag.mixed_layer_depth_m ?? 'N/A'} m`);
-  csv.push(`# Sonic Layer Depth (SLD): ${diag.sonic_layer_depth_m ?? 'N/A'} m`);
-  csv.push(`# Tropical Cyclone Heat Potential (TCHP): ${diag.tchp_kj_cm2 ?? 'N/A'} kJ/cm2 (${ch.badge_text || 'Low Risk'})`);
-  csv.push(`# Upper Ocean Heat Content (0-300m): ${diag.ohc_300m_gj_m2 ?? 'N/A'} GJ/m2`);
-  csv.push("# -------------------------------------------------------------");
-  csv.push("depth_m,temperature_pred_c,uncertainty_sigma_c,temp_upper_c,temp_lower_c,sound_velocity_ms,glorys_truth_c,error_c");
-
-  p.profile.forEach(row => {
-    if (!row.valid) return;
-    csv.push([
-      row.depth_m,
-      row.temperature_c ?? "",
-      row.uncertainty_sigma_c ?? "",
-      row.temp_upper_c ?? "",
-      row.temp_lower_c ?? "",
-      row.sound_velocity_ms ?? "",
-      row.truth_temperature_c ?? (row.glorys_truth_c ?? ""),
-      row.error_c ?? ""
-    ].join(","));
+  // Update button highlights
+  document.querySelectorAll(".mhw-preset-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.id === `btn-mhw-${zone.id}`);
   });
 
-  const blob = new Blob([csv.join("\n")], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.setAttribute("href", url);
-  link.setAttribute("download", `OceanEmbed_Profile_${p.grid_latitude}N_${p.grid_longitude}E_${p.date}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
+  // Update telemetry card
+  setEl("mhw-active-name", zone.name);
+  setEl("mhw-active-coords", `${zone.basin} · ${zone.lat.toFixed(2)}°N, ${zone.lon.toFixed(2)}°E`);
+  
+  const badge = document.getElementById("mhw-active-badge");
+  if (badge) {
+    badge.textContent = zone.category;
+    badge.style.background = `${zone.category_color}18`;
+    badge.style.color = zone.category_color;
+    badge.style.border = `1.5px solid ${zone.category_color}`;
+  }
+
+  setEl("mhw-active-sst", `${zone.sst_c} °C`);
+  setEl("mhw-active-temp50", `${zone.temp_50m_c} °C`);
+  
+  const anomEl = document.getElementById("mhw-active-anomaly");
+  if (anomEl) {
+    anomEl.textContent = `${zone.thermal_anomaly_c > 0 ? '+' : ''}${zone.thermal_anomaly_c} °C`;
+    anomEl.style.color = zone.thermal_anomaly_c > 0 ? '#ef4444' : '#10b981';
+  }
+
+  setEl("mhw-active-dhd", `${zone.degree_heating_days} °C·days`);
+  setEl("mhw-active-penetration", `${zone.heat_penetration_depth_m} m deep`);
+  setEl("mhw-pb-threshold-label", `≥ ${currentMhwThreshold.toFixed(1)}°C`);
+
+  const barFill = document.getElementById("mhw-active-bar-fill");
+  if (barFill) {
+    barFill.style.width = `${Math.min(100, Math.max(8, (zone.heat_penetration_depth_m / 100) * 100))}%`;
+    barFill.style.background = zone.category_color;
+  }
+
+  setEl("mhw-active-advisory-text", zone.risk_level);
+
+  // Pan map
+  if (mhwMap && zone.lat && zone.lon) {
+    mhwMap.panTo([zone.lat, zone.lon], { animate: true, duration: 0.5 });
+  }
+
+  // Render Depth Profile Chart
+  renderMhwDepthChart(zone.full_profile || [], currentMhwThreshold);
 }
 
-/* Executive Operational Mission Intelligence Bulletin Modal */
-function openExecutiveBulletin() {
-  if (!currentPrediction) {
-    alert("Please select and reconstruct an ocean point first.");
-    return;
-  }
-  const p = currentPrediction;
-  const diag = p.diagnostics || {};
-  const ch = diag.cyclone_hazard || {};
-  const mhw = diag.marine_heatwave || {};
+function renderMhwDepthChart(profile, threshold) {
+  const canvas = document.getElementById("mhwDepthChart");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
 
-  // Header timestamp
-  const tsEl = document.getElementById("bulletin-timestamp");
-  if (tsEl) {
-    tsEl.textContent = `North Indian Ocean Sector | Lat: ${p.grid_latitude.toFixed(2)}°N, Lon: ${p.grid_longitude.toFixed(2)}°E | Date: ${p.date}`;
+  if (mhwDepthChart) {
+    mhwDepthChart.destroy();
+    mhwDepthChart = null;
   }
 
-  // Hazard Box
-  const hBox = document.getElementById("bulletin-hazard-box");
-  const hTitle = document.getElementById("bulletin-hazard-title");
-  const hDesc = document.getElementById("bulletin-hazard-desc");
-  const hIcon = document.getElementById("bhb-icon");
+  // Filter depth profile to current zoom (200m or 1000m)
+  const filtered = profile.filter(p => p.depth_m <= currentMhwZoom);
+  const depths = filtered.map(p => p.depth_m);
+  const temps = filtered.map(p => p.temp_c);
 
-  if (hBox && hTitle && hDesc) {
-    const cls = ch.badge_class || "hazard-low";
-    hBox.className = `bulletin-hazard-banner ${cls === "hazard-severe" ? "hazard-banner-severe" : (cls === "hazard-moderate" ? "hazard-banner-moderate" : "hazard-banner-low")}`;
-    hTitle.textContent = `Tropical Cyclone Potential: ${ch.badge_text || "Low Intensification Risk"}`;
-    hDesc.textContent = ch.advisory || `TCHP is ${diag.tchp_kj_cm2 || 0} kJ/cm². Subsurface thermal conditions are within normal climatological bounds.`;
-    if (hIcon) {
-      hIcon.innerHTML = cls === "hazard-severe" ? '<i class="fa-solid fa-bolt"></i>' : (cls === "hazard-moderate" ? '<i class="fa-solid fa-triangle-exclamation"></i>' : '<i class="fa-solid fa-shield-halved"></i>');
+  mhwDepthChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: depths,
+      datasets: [
+        {
+          label: "Reconstructed Temperature (°C)",
+          data: temps,
+          borderColor: "#ef4444",
+          backgroundColor: "rgba(239, 68, 68, 0.15)",
+          borderWidth: 2.5,
+          tension: 0.35,
+          fill: true,
+          pointRadius: 4,
+          pointBackgroundColor: temps.map(t => t >= threshold ? "#dc2626" : "#0284c7"),
+          pointBorderColor: "#ffffff",
+          pointHoverRadius: 7,
+        },
+        {
+          label: `Bleaching Threshold (${threshold.toFixed(1)}°C)`,
+          data: depths.map(() => threshold),
+          borderColor: "rgba(220, 38, 38, 0.85)",
+          borderWidth: 1.8,
+          borderDash: [5, 5],
+          fill: false,
+          pointRadius: 0,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: {
+          position: "top",
+          labels: { color: "#334155", font: { family: "'Plus Jakarta Sans'", size: 11, weight: 600 } }
+        },
+        tooltip: {
+          callbacks: {
+            title: (items) => `Depth: ${items[0].label} m`,
+            label: (ctx) => `${ctx.dataset.label}: ${ctx.raw} °C`
+          }
+        }
+      },
+      scales: {
+        x: {
+          title: { display: true, text: "Depth (m)", color: "#334155", font: { size: 11, weight: 600 } },
+          ticks: { color: "#475569", font: { family: "'Plus Jakarta Sans'", size: 10 } },
+          grid: { color: "rgba(0,0,0,0.06)" }
+        },
+        y: {
+          title: { display: true, text: "Temperature (°C)", color: "#334155", font: { size: 11, weight: 600 } },
+          ticks: { color: "#475569", font: { family: "'Plus Jakarta Sans'", size: 10 } },
+          grid: { color: "rgba(0,0,0,0.06)" },
+          suggestedMin: currentMhwZoom === 200 ? 16 : 4,
+          suggestedMax: 32
+        }
+      }
     }
-  }
-
-  // Grid metrics
-  const setEl = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined) el.textContent = val; };
-  setEl("b-d20", diag.thermocline_d20_m ? `${diag.thermocline_d20_m} m` : "—");
-  setEl("b-mld", diag.mixed_layer_depth_m ? `${diag.mixed_layer_depth_m} m` : "—");
-  setEl("b-sld", diag.sonic_layer_depth_m ? `${diag.sonic_layer_depth_m} m` : "—");
-  setEl("b-sound-surface", diag.surface_sound_velocity_ms ? `${diag.surface_sound_velocity_ms} m/s` : "—");
-  setEl("b-tchp", diag.tchp_kj_cm2 !== undefined ? `${diag.tchp_kj_cm2} kJ/cm²` : "—");
-  setEl("b-ohc", diag.ohc_300m_gj_m2 !== undefined ? `${diag.ohc_300m_gj_m2} GJ/m²` : "—");
-
-  // Satellite pills
-  const satPills = document.getElementById("bulletin-satellite-pills");
-  if (satPills && p.surface_observations) {
-    const obs = p.surface_observations;
-    const u10 = obs.u10 ?? obs.u_wind ?? 0;
-    const v10 = obs.v10 ?? obs.v_wind ?? 0;
-    const windSpeed = Math.sqrt(u10**2 + v10**2).toFixed(1);
-    satPills.innerHTML = `
-      <div class="sat-pill"><span class="sat-pill-name">OSTIA Sea Surface Temp</span><span class="sat-pill-val">${obs.sst !== undefined ? obs.sst + ' °C' : '—'}</span></div>
-      <div class="sat-pill"><span class="sat-pill-name">SMAP Surface Salinity</span><span class="sat-pill-val">${obs.sss !== undefined ? obs.sss + ' PSU' : '—'}</span></div>
-      <div class="sat-pill"><span class="sat-pill-name">Altimetry Sea Level Anomaly</span><span class="sat-pill-val">${obs.sla !== undefined ? obs.sla + ' m' : '—'}</span></div>
-      <div class="sat-pill"><span class="sat-pill-name">Surface Current (Zonal U)</span><span class="sat-pill-val">${obs.u !== undefined ? obs.u + ' m/s' : '—'}</span></div>
-      <div class="sat-pill"><span class="sat-pill-name">Surface Current (Meridional V)</span><span class="sat-pill-val">${obs.v !== undefined ? obs.v + ' m/s' : '—'}</span></div>
-      <div class="sat-pill"><span class="sat-pill-name">10m Surface Wind Velocity</span><span class="sat-pill-val">${windSpeed} m/s</span></div>
-    `;
-  }
-
-  // Action Items List
-  const actionsList = document.getElementById("bulletin-actions-list");
-  if (actionsList) {
-    let items = [];
-    if (ch.level === "SEVERE_RI_ALERT") {
-      items.push(`<li><i class="fa-solid fa-triangle-exclamation" style="color:#f87171;"></i> <div><strong>IMD Cyclone Rapid Intensification Alert:</strong> High TCHP reservoir (> 80 kJ/cm²) identified. Tropical disturbances entering this zone have elevated probability of rapid intensification into severe cyclonic storms. Advise INCOIS & SDMA coastal monitoring.</div></li>`);
-    } else if (ch.level === "MODERATE_ALERT") {
-      items.push(`<li><i class="fa-solid fa-triangle-exclamation" style="color:#fbbf24;"></i> <div><strong>Cyclone Thermal Reservoir:</strong> Moderate TCHP supporting sustained storm tracks. Recommend routine satellite radar surveillance.</div></li>`);
-    } else {
-      items.push(`<li><i class="fa-solid fa-circle-check" style="color:#34d399;"></i> <div><strong>Tropical Cyclone Fuel:</strong> Subsurface thermal conditions are within normal climatological bounds; low risk of rapid tropical storm intensification.</div></li>`);
-    }
-
-    if (diag.sonic_layer_depth_m) {
-      items.push(`<li><i class="fa-solid fa-water" style="color:#38bdf8;"></i> <div><strong>Naval Tactical Sonar Advisory:</strong> Sonic Layer Depth is established at <strong>${diag.sonic_layer_depth_m}m</strong>. Active sonar surface duct operates from 0 to ${diag.sonic_layer_depth_m}m. Submarines operating below ${diag.sonic_layer_depth_m}m occupy the acoustic shadow zone.</div></li>`);
-    }
-
-    if (mhw && mhw.detected) {
-      items.push(`<li><i class="fa-solid fa-fire" style="color:#fb923c;"></i> <div><strong>Marine Ecological Alert:</strong> Marine Heatwave (${mhw.category}) identified with SST at ${mhw.sst_c}°C. Thermal stress threshold reached for coral reefs and pelagic migratory species.</div></li>`);
-    } else {
-      items.push(`<li><i class="fa-solid fa-fish" style="color:#38bdf8;"></i> <div><strong>Fisheries Advisory:</strong> Normal thermocline gradient supports stable pelagic fishing zones across continental shelf breaks.</div></li>`);
-    }
-
-    actionsList.innerHTML = items.join("");
-  }
-
-  const modal = document.getElementById("bulletin-modal");
-  if (modal) modal.classList.remove("hidden");
+  });
 }
 
-function closeExecutiveBulletin() {
-  const modal = document.getElementById("bulletin-modal");
-  if (modal) modal.classList.add("hidden");
+function setMhwChartDepthZoom(zoom) {
+  currentMhwZoom = zoom;
+  document.getElementById("btn-mhw-zoom-200")?.classList.toggle("active", zoom === 200);
+  document.getElementById("btn-mhw-zoom-1000")?.classList.toggle("active", zoom === 1000);
+
+  if (currentMhwData) {
+    const zone = currentMhwData.zones.find(z => z.id === activeMhwSanctuaryId) || currentMhwData.zones[0];
+    if (zone) {
+      renderMhwDepthChart(zone.full_profile || [], currentMhwThreshold);
+    }
+  }
+}
+
+let mhwSlideDebounce = null;
+function onMhwThresholdSlide(val) {
+  currentMhwThreshold = parseFloat(val);
+  setEl("mhw-thresh-val", `${currentMhwThreshold.toFixed(1)} °C`);
+  setEl("mhw-active-threshold-badge", `${currentMhwThreshold.toFixed(1)} °C`);
+
+  clearTimeout(mhwSlideDebounce);
+  mhwSlideDebounce = setTimeout(() => {
+    loadMhwAnalytics(activeMhwSanctuaryId, undefined, undefined, currentMhwThreshold);
+  }, 200);
+}
+
+function simulateMhwSpike() {
+  const slider = document.getElementById("mhw-threshold-slider");
+  const btn = document.getElementById("btn-mhw-pulse");
+  if (!isMhwPulseSimulated) {
+    isMhwPulseSimulated = true;
+    currentMhwThreshold = 27.2;
+    if (slider) slider.value = currentMhwThreshold;
+    if (btn) {
+      btn.innerHTML = `<i class="fa-solid fa-fire"></i> Spike Active (27.2°C)`;
+      btn.style.background = "#b91c1c";
+    }
+  } else {
+    isMhwPulseSimulated = false;
+    currentMhwThreshold = 28.5;
+    if (slider) slider.value = currentMhwThreshold;
+    if (btn) {
+      btn.innerHTML = `<i class="fa-solid fa-bolt"></i> +1.5°C Pulse`;
+      btn.style.background = "#ef4444";
+    }
+  }
+  onMhwThresholdSlide(currentMhwThreshold);
+}
+
+function resetMhwThreshold() {
+  isMhwPulseSimulated = false;
+  currentMhwThreshold = 28.5;
+  const slider = document.getElementById("mhw-threshold-slider");
+  if (slider) slider.value = currentMhwThreshold;
+  const btn = document.getElementById("btn-mhw-pulse");
+  if (btn) {
+    btn.innerHTML = `<i class="fa-solid fa-bolt"></i> +1.5°C Pulse`;
+    btn.style.background = "#ef4444";
+  }
+  onMhwThresholdSlide(28.5);
 }
 
 /* ============================================================
-   Agro Analytics — Ocean-Agriculture Impact (SST → Monsoon → Crop)
+   Interactive Agro Analytics — Climate Scenario Simulator
    ============================================================ */
-let agroCharts = {};  // track Chart.js instances for destroy-on-reload
+let agroCharts = {};
+let currentAgroAnomaly = 0.42;
+let activeAgroZone = "All";
+let agroDataCache = null;
+let agroSlideDebounce = null;
 
-async function loadAgroAnalytics() {
+const AGRO_ZONE_ADVISORIES = {
+  "All": {
+    region: "National Coastal Agro-Climatic Belt (All 6 Zones)",
+    crops: "Paddy, Groundnut, Cotton, Sugarcane, Coarse Cereals, Pulses",
+    normalSowing: "June 10 – July 5",
+    advisory: (anom) => anom >= 1.5
+      ? "Severe El Niño / Basin warming detected. Extended monsoon delay of 8–12 days anticipated. Immediate mandate: Advise farmers to shift to short-duration drought-hardy paddy cultivars (CR Dhan 201, Sahbhagi Dhan). Enforce canal water rationing for critical seedling nursery stages."
+      : anom >= 0.8
+      ? "Moderate warming anomaly. Sowing window shifted by 4–6 days. Promote direct seeded rice (DSR) and staggered nursery preparation. Apply mulching to arrest surface soil moisture loss in coastal upland plots."
+      : anom <= -0.8
+      ? "La Niña cooling teleconnection active. Vigorous monsoon onset with surplus early rainfall. Ensure drainage channels are desilted to avoid waterlogging in deltaic lowlands. Optimal conditions for medium-to-long duration Kharif paddy cultivars."
+      : "Conditions favorable for regular Kharif sowing. Maintain normal seed-bed preparation for medium-duration paddy cultivars. In rainfed coastal pockets, ensure broadbed furrow irrigation readiness in event of localized monsoon dry spells."
+  },
+  "Gujarat": {
+    region: "Saurashtra & South Gujarat Coastal Plain",
+    crops: "Bt Cotton, Groundnut (GG-20), Castor, Sesame",
+    normalSowing: "June 15 – June 30",
+    advisory: (anom) => anom >= 1.0
+      ? "Saurashtra groundnut belt faces moisture deficit. Delay sowing until minimum 50mm soaking rainfall occurs. Pre-treat groundnut seeds with Trichoderma. Prepare for intercropping with drought-tolerant pigeon pea."
+      : "Adequate soil hydration projected. Commence ridge-and-furrow planting for groundnut and cotton. Schedule pre-sowing weed management."
+  },
+  "Konkan": {
+    region: "Konkan Coast & Goa Foothills",
+    crops: "Kharif Paddy (Karjat-4), Alphonso Mango, Cashew",
+    normalSowing: "June 5 – June 20",
+    advisory: (anom) => anom >= 1.0
+      ? "Delayed monsoon surge along Western Ghats. Utilize community farm ponds for nursery raising. Protect cashew and mango saplings with organic mulch."
+      : "Heavy early rainfall likely. Ensure raised nursery beds (Mat Nursery) for paddy to withstand torrential coastal showers."
+  },
+  "Kerala": {
+    region: "Coastal Karnataka & Kerala Malabar Coast",
+    crops: "Pokkali Rice, Black Pepper, Cardamom, Coconut",
+    normalSowing: "May 28 – June 15",
+    advisory: (anom) => anom >= 1.0
+      ? "Monsoon onset delayed along Kerala coast. Irrigate young coconut palms. In Pokkali saline tracts, delay paddy seeding until salinity drops below 2 dS/m."
+      : "Regular monsoon advance confirmed. Begin transplantation of 21-day-old paddy seedlings in Kuttanad and Malabar delta tracts."
+  },
+  "Tamil Nadu": {
+    region: "Cauvery Delta & Coromandel Coast",
+    crops: "Kuruvai / Samba Paddy (ADT-43), Sugarcane, Pulses",
+    normalSowing: "June 12 – July 10",
+    advisory: (anom) => anom >= 1.0
+      ? "Bay of Bengal SST anomaly indicates weak pre-monsoon flow. Maximize Mettur reservoir canal efficiency with Alternate Wetting and Drying (AWD) irrigation protocol."
+      : "Normal delta inflow expected. Proceed with Kuruvai paddy transplantation and mechanical weeding."
+  },
+  "Andhra": {
+    region: "Andhra Coastal Delta (Krishna-Godavari)",
+    crops: "Paddy (MTU-1010), Chillies, Tobacco, Pulses",
+    normalSowing: "June 20 – July 15",
+    advisory: (anom) => anom >= 1.0
+      ? "Dry spells predicted during tillering stage. Adopt System of Rice Intensification (SRI) to economize water usage by 35%."
+      : "Optimal soil moisture profile. Maintain 2-3 cm standing water in main fields following Godavari canal releases."
+  },
+  "Odisha": {
+    region: "Odisha Coastal Plain & Gangetic Delta",
+    crops: "Swarna Paddy, Jute, Mung Bean, Oilseeds",
+    normalSowing: "June 15 – July 10",
+    advisory: (anom) => anom >= 1.0
+      ? "Coastal rainfed tracts vulnerable to sowing delays. Promote pulse intercropping and foliar potassium spray to induce drought tolerance."
+      : "Monsoon low-pressure systems active over North Bay of Bengal. Ensure robust field bunding to harness monsoon runoff."
+  }
+};
+
+async function loadAgroAnalytics(simulatedAnomaly) {
   const isDark = document.documentElement.getAttribute("data-theme") === "dark";
   const textCol = isDark ? "#0c4a6e" : "#475569";
   const gridCol = isDark ? "rgba(56, 189, 248, 0.2)" : "rgba(0,0,0,0.06)";
 
-  // Get current selected date from dashboard dropdown
-  const dateEl = document.getElementById("select-date");
-  const currentDate = dateEl ? dateEl.value : "2024-06-01";
+  const anomaly = simulatedAnomaly !== undefined ? simulatedAnomaly : currentAgroAnomaly;
+  currentAgroAnomaly = anomaly;
 
   try {
-    const res = await fetch(`/api/agro_analytics?date=${currentDate}`);
+    const res = await fetch(`/api/agro_analytics?simulated_sst_anomaly=${anomaly}`);
     const data = await res.json();
     if (data.status !== "success") throw new Error("API error");
 
-    const kpi   = data.kpi;
-    const mon   = data.monthly;
-    const zones = data.ndvi_zones;
+    agroDataCache = data;
+    const kpi = data.kpi;
+    const mon = data.monthly;
 
     // ── KPI cards ──────────────────────────────────────────────
-    const setKpi = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
-    setKpi("agro-sst-anomaly",   (kpi.sst_anomaly_c >= 0 ? "+" : "") + kpi.sst_anomaly_c.toFixed(2) + " \u00b0C");
-    setKpi("agro-monsoon-shift", (kpi.monsoon_shift_days >= 0 ? "+" : "\u2212") + Math.abs(kpi.monsoon_shift_days).toFixed(1) + " days");
-    setKpi("agro-ndvi",          kpi.ndvi.toFixed(3));
-    setKpi("agro-yield",         (kpi.kharif_yield_pct >= 0 ? "+" : "") + kpi.kharif_yield_pct.toFixed(1) + "%");
-    setKpi("agro-moisture",      kpi.soil_moisture.toFixed(3));
+    setEl("agro-sst-anomaly", (kpi.sst_anomaly_c >= 0 ? "+" : "") + kpi.sst_anomaly_c.toFixed(2) + " °C");
+    setEl("agro-monsoon-shift", (kpi.monsoon_shift_days >= 0 ? "+" : "−") + Math.abs(kpi.monsoon_shift_days).toFixed(1) + " days");
+    setEl("agro-ndvi", kpi.ndvi.toFixed(3));
+    setEl("agro-yield", (kpi.kharif_yield_pct >= 0 ? "+" : "") + kpi.kharif_yield_pct.toFixed(1) + "%");
+    setEl("agro-moisture", kpi.soil_moisture.toFixed(3));
 
-    // ── Chart 1: SST Anomaly vs Rainfall (dual axis) ───────────
+    // Dynamic coloring of yield
+    const yieldEl = document.getElementById("agro-yield");
+    if (yieldEl) {
+      yieldEl.style.color = kpi.kharif_yield_pct >= 0 ? "#16a34a" : "#ef4444";
+    }
+
+    const monsoonSub = document.getElementById("agro-monsoon-sub");
+    if (monsoonSub) {
+      monsoonSub.textContent = kpi.monsoon_shift_days < 0 ? "Delayed advance" : "Early onset";
+    }
+
+    // Update simulation badge
+    const badge = document.getElementById("agro-sim-badge");
+    if (badge) {
+      if (anomaly >= 1.5) {
+        badge.textContent = `+${anomaly.toFixed(2)} °C · Extreme El Niño / Warming`;
+        badge.style.background = "#fee2e2";
+        badge.style.color = "#dc2626";
+        badge.style.borderColor = "#fca5a5";
+      } else if (anomaly >= 0.6) {
+        badge.textContent = `+${anomaly.toFixed(2)} °C · Moderate El Niño`;
+        badge.style.background = "#fef3c7";
+        badge.style.color = "#d97706";
+        badge.style.borderColor = "#fde68a";
+      } else if (anomaly <= -0.6) {
+        badge.textContent = `${anomaly.toFixed(2)} °C · La Niña Cooling Active`;
+        badge.style.background = "#e0f2fe";
+        badge.style.color = "#0284c7";
+        badge.style.borderColor = "#bae6fd";
+      } else {
+        badge.textContent = `+${anomaly.toFixed(2)} °C · Near-Neutral Baseline`;
+        badge.style.background = "#f0fdf4";
+        badge.style.color = "#16a34a";
+        badge.style.borderColor = "#bbf7d0";
+      }
+    }
+
+    // ── Update Zone Advisory Card ──────────────────────────────
+    updateAgroAdvisoryCard();
+
+    // ── Chart 1: SST Anomaly vs Rainfall ───────────────────────
     const destroyChart = (id) => { if (agroCharts[id]) { agroCharts[id].destroy(); delete agroCharts[id]; } };
-
     destroyChart("sst-monsoon");
     const ctx1 = document.getElementById("agro-sst-monsoon-chart");
     if (ctx1) {
@@ -2622,8 +2918,8 @@ async function loadAgroAnalytics() {
           datasets: [
             {
               type: "line",
-              label: "SST Anomaly (\u00b0C)",
-              data: mon.sst_anomaly,
+              label: "SST Anomaly (°C)",
+              data: mon.sst_anomaly.map(v => Number((v + (anomaly - 0.42)).toFixed(2))),
               borderColor: "#ef4444",
               backgroundColor: "rgba(239,68,68,0.12)",
               borderWidth: 2.5,
@@ -2636,7 +2932,7 @@ async function loadAgroAnalytics() {
             {
               type: "bar",
               label: "Rainfall Anomaly (mm)",
-              data: mon.rainfall_anomaly_mm,
+              data: mon.rainfall_anomaly_mm.map(v => Number((v - (anomaly - 0.42) * 18.0).toFixed(1))),
               backgroundColor: mon.rainfall_anomaly_mm.map(v => v >= 0 ? "rgba(14,165,233,0.7)" : "rgba(251,146,60,0.7)"),
               borderColor: mon.rainfall_anomaly_mm.map(v => v >= 0 ? "#0ea5e9" : "#f97316"),
               borderWidth: 1.5,
@@ -2645,7 +2941,8 @@ async function loadAgroAnalytics() {
           ]
         },
         options: {
-          responsive: true, maintainAspectRatio: false,
+          responsive: true,
+          maintainAspectRatio: false,
           plugins: {
             legend: { labels: { color: textCol, font: { size: 10 } } },
             tooltip: { mode: "index" }
@@ -2656,7 +2953,7 @@ async function loadAgroAnalytics() {
               type: "linear", position: "left",
               ticks: { color: "#ef4444", font: { size: 9 } },
               grid: { color: gridCol },
-              title: { display: true, text: "SST Anom. (\u00b0C)", color: "#ef4444", font: { size: 9 } }
+              title: { display: true, text: "SST Anom. (°C)", color: "#ef4444", font: { size: 9 } }
             },
             y2: {
               type: "linear", position: "right",
@@ -2669,7 +2966,7 @@ async function loadAgroAnalytics() {
       });
     }
 
-    // ── Chart 2: Crop Yield by Zone (horizontal bar) ───────────
+    // ── Chart 2: Crop Yield by Zone ────────────────────────────
     destroyChart("crop-yield");
     const ctx2 = document.getElementById("agro-crop-yield-chart");
     if (ctx2) {
@@ -2689,7 +2986,8 @@ async function loadAgroAnalytics() {
         },
         options: {
           indexAxis: "y",
-          responsive: true, maintainAspectRatio: false,
+          responsive: true,
+          maintainAspectRatio: false,
           plugins: {
             legend: { display: false },
             tooltip: { callbacks: { label: ctx => `${ctx.parsed.x >= 0 ? "+" : ""}${ctx.parsed.x.toFixed(1)}%` } }
@@ -2706,7 +3004,7 @@ async function loadAgroAnalytics() {
       });
     }
 
-    // ── Chart 3: Soil Moisture vs Ocean Heat Content ───────────
+    // ── Chart 3: Soil Moisture vs OHC ──────────────────────────
     destroyChart("moisture");
     const ctx3 = document.getElementById("agro-moisture-chart");
     if (ctx3) {
@@ -2717,7 +3015,7 @@ async function loadAgroAnalytics() {
             {
               type: "line",
               label: "Soil Moisture Index",
-              data: mon.soil_moisture,
+              data: mon.soil_moisture.map(v => Number(Math.max(0.1, Math.min(0.95, v - (anomaly - 0.42) * 0.12)).toFixed(3))),
               borderColor: "#8b5cf6",
               backgroundColor: "rgba(139,92,246,0.15)",
               borderWidth: 2.5,
@@ -2728,8 +3026,8 @@ async function loadAgroAnalytics() {
             },
             {
               type: "line",
-              label: "Ocean Heat Content (TJ/m\u00b2)",
-              data: mon.ohc_tj_m2,
+              label: "Ocean Heat Content (TJ/m²)",
+              data: mon.ohc_tj_m2.map(v => Number((v + (anomaly - 0.42) * 0.8).toFixed(2))),
               borderColor: "#f97316",
               backgroundColor: "rgba(249,115,22,0.1)",
               borderWidth: 2,
@@ -2741,7 +3039,8 @@ async function loadAgroAnalytics() {
           ]
         },
         options: {
-          responsive: true, maintainAspectRatio: false,
+          responsive: true,
+          maintainAspectRatio: false,
           plugins: { legend: { labels: { color: textCol, font: { size: 10 } } } },
           scales: {
             x: { ticks: { color: textCol, font: { size: 9 } }, grid: { color: gridCol } },
@@ -2755,18 +3054,18 @@ async function loadAgroAnalytics() {
               position: "right",
               ticks: { color: "#f97316", font: { size: 9 } },
               grid: { drawOnChartArea: false },
-              title: { display: true, text: "OHC (TJ/m\u00b2)", color: "#f97316", font: { size: 9 } }
+              title: { display: true, text: "OHC (TJ/m²)", color: "#f97316", font: { size: 9 } }
             }
           }
         }
       });
     }
 
-    // ── Chart 4: NDVI Trend by Coastal Zone ───────────────────
+    // ── Chart 4: NDVI Trend ────────────────────────────────────
     destroyChart("ndvi");
     const ctx4 = document.getElementById("agro-ndvi-chart");
     if (ctx4) {
-      const zoneNames = Object.keys(zones);
+      const zoneNames = Object.keys(data.ndvi_zones);
       const palette = ["#0ea5e9", "#22c55e", "#f97316", "#a855f7", "#ef4444", "#eab308"];
       agroCharts["ndvi"] = new Chart(ctx4, {
         type: "line",
@@ -2774,7 +3073,7 @@ async function loadAgroAnalytics() {
           labels: mon.months,
           datasets: zoneNames.map((name, i) => ({
             label: name,
-            data: zones[name],
+            data: data.ndvi_zones[name].map(v => Number(Math.max(0.15, Math.min(0.9, v + (anomaly - 0.42) * 0.04)).toFixed(3))),
             borderColor: palette[i % palette.length],
             backgroundColor: "transparent",
             borderWidth: 2,
@@ -2783,7 +3082,8 @@ async function loadAgroAnalytics() {
           }))
         },
         options: {
-          responsive: true, maintainAspectRatio: false,
+          responsive: true,
+          maintainAspectRatio: false,
           plugins: {
             legend: { labels: { color: textCol, font: { size: 9 }, boxWidth: 12 } }
           },
@@ -2802,12 +3102,14 @@ async function loadAgroAnalytics() {
     // ── Zone summary table ──────────────────────────────────────
     const tbody = document.getElementById("agro-zone-tbody");
     if (tbody) {
-      tbody.innerHTML = data.zone_summary.map(z => {
+      tbody.innerHTML = data.zone_summary.map((z) => {
         const riskColor = z.risk === "Low" ? "#22c55e" : z.risk === "Medium" ? "#f97316" : "#ef4444";
         const yieldStr = (z.yield_pct >= 0 ? "+" : "") + z.yield_pct.toFixed(1) + "%";
         const rainStr  = (z.rainfall_dev_pct >= 0 ? "+" : "") + z.rainfall_dev_pct.toFixed(1) + "%";
-        const sstStr   = (z.sst_anomaly >= 0 ? "+" : "") + z.sst_anomaly.toFixed(2) + " \u00b0C";
-        return `<tr>
+        const sstStr   = (z.sst_anomaly >= 0 ? "+" : "") + z.sst_anomaly.toFixed(2) + " °C";
+        const isSelected = activeAgroZone !== "All" && z.zone.toLowerCase().includes(activeAgroZone.toLowerCase());
+
+        return `<tr style="${isSelected ? 'background:#f0fdf4; font-weight:700;' : ''} cursor:pointer;" onclick="selectAgroZoneTableRow('${z.zone}')">
           <td><strong>${z.zone}</strong><br><small style="color:var(--text-muted)">${z.region}</small></td>
           <td style="color:${z.sst_anomaly >= 0 ? '#ef4444' : '#0ea5e9'}; font-weight:700;">${sstStr}</td>
           <td style="color:${z.rainfall_dev_pct >= 0 ? '#0ea5e9' : '#f97316'}; font-weight:700;">${rainStr}</td>
@@ -2817,12 +3119,109 @@ async function loadAgroAnalytics() {
         </tr>`;
       }).join("");
     }
-
   } catch (err) {
     console.error("Agro Analytics error:", err);
-    const tab = document.getElementById("agro-tab");
-    if (tab) tab.querySelector(".agro-charts-grid").innerHTML = `<div style="padding:20px; color:#ef4444;">Error loading Agro Analytics: ${err.message}</div>`;
   }
+}
+
+function updateAgroAdvisoryCard() {
+  const info = AGRO_ZONE_ADVISORIES[activeAgroZone] || AGRO_ZONE_ADVISORIES["All"];
+  setEl("azac-zone-name", info.region);
+  setEl("azac-crops", info.crops);
+
+  // Sowing shift estimation
+  const shiftDays = Math.round(-currentAgroAnomaly * 5.2);
+  const sowingText = shiftDays < -2
+    ? `Delayed by ${Math.abs(shiftDays)} days vs normal (${info.normalSowing})`
+    : shiftDays > 2
+    ? `Advanced by ${shiftDays} days vs normal (${info.normalSowing})`
+    : `On-Schedule Normal Window (${info.normalSowing})`;
+
+  setEl("azac-sowing", sowingText);
+  setEl("azac-advisory-text", info.advisory(currentAgroAnomaly));
+
+  const pill = document.getElementById("azac-risk-pill");
+  if (pill) {
+    if (Math.abs(currentAgroAnomaly) >= 1.5) {
+      pill.textContent = "High Vulnerability";
+      pill.style.background = "#fee2e2";
+      pill.style.color = "#dc2626";
+      pill.style.borderColor = "#fca5a5";
+    } else if (Math.abs(currentAgroAnomaly) >= 0.8) {
+      pill.textContent = "Medium Vulnerability";
+      pill.style.background = "#fef3c7";
+      pill.style.color = "#d97706";
+      pill.style.borderColor = "#fde68a";
+    } else {
+      pill.textContent = "Low Vulnerability";
+      pill.style.background = "#dcfce7";
+      pill.style.color = "#16a34a";
+      pill.style.borderColor = "#bbf7d0";
+    }
+  }
+}
+
+function onAgroSimSlide(val) {
+  currentAgroAnomaly = parseFloat(val);
+  clearTimeout(agroSlideDebounce);
+  agroSlideDebounce = setTimeout(() => {
+    loadAgroAnalytics(currentAgroAnomaly);
+  }, 180);
+}
+
+function setAgroScenario(anomaly, label) {
+  const slider = document.getElementById("agro-sim-slider");
+  if (slider) slider.value = anomaly;
+
+  document.querySelectorAll(".asb-presets-group .btn-preset").forEach(btn => {
+    btn.classList.toggle("active", btn.textContent.includes(label.split(" ")[0]));
+  });
+
+  loadAgroAnalytics(anomaly);
+}
+
+function resetAgroScenario() {
+  const slider = document.getElementById("agro-sim-slider");
+  if (slider) slider.value = 0.42;
+  setAgroScenario(0.42, "Baseline 2024");
+}
+
+function filterAgroZone(zoneKey, btnEl) {
+  activeAgroZone = zoneKey;
+
+  if (btnEl) {
+    document.querySelectorAll(".azf-pills .azf-btn").forEach(b => b.classList.remove("active"));
+    btnEl.classList.add("active");
+  }
+
+  updateAgroAdvisoryCard();
+
+  if (agroDataCache) {
+    const tbody = document.getElementById("agro-zone-tbody");
+    if (tbody) {
+      tbody.querySelectorAll("tr").forEach(tr => {
+        const text = tr.textContent.toLowerCase();
+        const isMatch = activeAgroZone !== "All" && text.includes(activeAgroZone.toLowerCase());
+        tr.style.background = isMatch ? "#f0fdf4" : "";
+        tr.style.fontWeight = isMatch ? "700" : "normal";
+      });
+    }
+  }
+}
+
+function selectAgroZoneTableRow(zoneName) {
+  let key = "All";
+  if (zoneName.includes("Gujarat")) key = "Gujarat";
+  else if (zoneName.includes("Konkan")) key = "Konkan";
+  else if (zoneName.includes("Kerala")) key = "Kerala";
+  else if (zoneName.includes("Tamil")) key = "Tamil Nadu";
+  else if (zoneName.includes("Andhra")) key = "Andhra";
+  else if (zoneName.includes("Odisha")) key = "Odisha";
+
+  const btn = Array.from(document.querySelectorAll(".azf-pills .azf-btn")).find(b => b.textContent.includes(key));
+  filterAgroZone(key, btn);
+
+  document.getElementById("agro-zone-advisory-card")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
 /* ============================================================

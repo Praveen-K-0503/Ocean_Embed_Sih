@@ -16,7 +16,7 @@
 <!-- Chart.js & Plotly.js 3D -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
-<link href="/static/styles.css?v=235" rel="stylesheet"/>
+<link href="/static/styles.css?v=250" rel="stylesheet"/>
 </head>
 <body>
 <!-- Screen 1: Interactive Ocean Login Gateway -->
@@ -1227,32 +1227,148 @@
           <div class="mhw-kpi-pill">
             <span class="mhw-kp-lbl">Max Heat Penetration</span>
             <strong class="mhw-kp-val" id="mhw-max-pen">-- m</strong>
-            <span class="mhw-kp-sub">Thermal depth ≥ 28°C</span>
+            <span class="mhw-kp-sub">Thermal depth ≥ threshold</span>
           </div>
           <div class="mhw-kpi-pill">
             <span class="mhw-kp-lbl">Severe Risk Zones</span>
             <strong class="mhw-kp-val" id="mhw-severe-count" style="color:#ef4444;">--</strong>
             <span class="mhw-kp-sub">Cat III / IV Active</span>
           </div>
+          <div class="mhw-kpi-pill">
+            <span class="mhw-kp-lbl">Active Threshold</span>
+            <strong class="mhw-kp-val" id="mhw-active-threshold-badge" style="color:#f59e0b;">28.5 °C</strong>
+            <span class="mhw-kp-sub">Bleaching Baseline</span>
+          </div>
         </div>
       </div>
 
-      <!-- Quick Control Bar -->
+      <!-- Quick Interactive Sanctuary Presets & Threshold Slider Bar -->
       <div class="mhw-control-strip">
         <div class="mcs-left">
-          <span class="mcs-label"><i class="fa-solid fa-shield-virus"></i> Monitored Coral Reef Sanctuaries:</span>
-          <span class="mcs-tag">Lakshadweep Atolls</span>
-          <span class="mcs-tag">Gulf of Mannar Biosphere</span>
-          <span class="mcs-tag">Andaman &amp; Nicobar</span>
-          <span class="mcs-tag">Gulf of Kachchh Marine Park</span>
+          <span class="mcs-label"><i class="fa-solid fa-shield-virus"></i> Coral Reef Presets:</span>
+          <button class="mhw-preset-btn active" id="btn-mhw-lakshadweep" onclick="selectMhwSanctuary('lakshadweep')">🏝️ Lakshadweep</button>
+          <button class="mhw-preset-btn" id="btn-mhw-mannar" onclick="selectMhwSanctuary('mannar')">🪸 Gulf of Mannar</button>
+          <button class="mhw-preset-btn" id="btn-mhw-andaman" onclick="selectMhwSanctuary('andaman')">🌴 Andaman &amp; Nicobar</button>
+          <button class="mhw-preset-btn" id="btn-mhw-kachchh" onclick="selectMhwSanctuary('kachchh')">🐬 Gulf of Kachchh</button>
+          <button class="mhw-preset-btn" id="btn-mhw-malvan" onclick="selectMhwSanctuary('malvan')">🐟 Malvan Coast</button>
+          <button class="mhw-preset-btn" id="btn-mhw-netrani" onclick="selectMhwSanctuary('netrani')">🐠 Netrani Island</button>
         </div>
-        <button class="btn-sm btn-primary-gradient" onclick="exportNetCDF()"><i class="fa-solid fa-cloud-arrow-down"></i> Export CF-NetCDF (.nc)</button>
+        <div class="mcs-right">
+          <div class="mhw-threshold-control">
+            <label for="mhw-threshold-slider"><i class="fa-solid fa-temperature-arrow-up"></i> Threshold:</label>
+            <input type="range" id="mhw-threshold-slider" min="27.0" max="31.0" step="0.1" value="28.5" oninput="onMhwThresholdSlide(this.value)">
+            <span class="mhw-thresh-val" id="mhw-thresh-val">28.5 °C</span>
+          </div>
+          <button class="btn-sm btn-action-pulse" id="btn-mhw-pulse" onclick="simulateMhwSpike()" title="Simulate +1.5°C Marine Heatwave Pulse"><i class="fa-solid fa-bolt"></i> +1.5°C Pulse</button>
+          <button class="btn-sm btn-outline" onclick="resetMhwThreshold()" title="Reset to standard 28.5°C baseline"><i class="fa-solid fa-rotate-left"></i> Reset</button>
+          <button class="btn-sm btn-primary-gradient" onclick="exportNetCDF()"><i class="fa-solid fa-cloud-arrow-down"></i> CF-NetCDF (.nc)</button>
+        </div>
       </div>
     </div>
   </div>
 
   <div class="mhw-content-container">
-    <!-- Live Ecozone Grid -->
+    <!-- Main Interactive Split Workstation Layout -->
+    <div class="mhw-workstation-layout">
+      <!-- Left Column: Interactive Map -->
+      <div class="mhw-map-column">
+        <div class="mhw-card-header">
+          <div>
+            <h4 class="mhw-ch-title"><i class="fa-solid fa-map-location-dot"></i> Interactive North Indian Ocean Marine Heatwave Map</h4>
+            <span class="mhw-ch-sub">Click any coral sanctuary or <strong>click anywhere on the ocean</strong> to drop a pin and run real-time subsurface profiling</span>
+          </div>
+          <button class="btn-sm btn-outline" onclick="resetMhwMapView()"><i class="fa-solid fa-arrows-to-dot"></i> Reset Map</button>
+        </div>
+        <div class="mhw-map-container">
+          <div id="mhw-leaflet-map" style="width:100%; height:490px; z-index:1;"></div>
+          <!-- Legend Overlay -->
+          <div class="mhw-map-legend">
+            <div class="mml-title"><i class="fa-solid fa-shield-halved"></i> Hobday et al. (2016) Category</div>
+            <div class="mml-item"><span class="mml-dot dot-cat4"></span><span>Cat IV: Extreme (≥ 3.0°C anomaly)</span></div>
+            <div class="mml-item"><span class="mml-dot dot-cat3"></span><span>Cat III: Severe (2.0–3.0°C anomaly)</span></div>
+            <div class="mml-item"><span class="mml-dot dot-cat2"></span><span>Cat II: Strong (1.0–2.0°C anomaly)</span></div>
+            <div class="mml-item"><span class="mml-dot dot-cat1"></span><span>Cat I: Moderate (0.5–1.0°C anomaly)</span></div>
+            <div class="mml-item"><span class="mml-dot dot-custom"></span><span>Interactive Ocean Coordinate Pin</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Interactive Telemetry & Reconstructed Vertical Thermal Profile Chart -->
+      <div class="mhw-analytics-column">
+        <!-- Active Selected Sanctuary / Point Card -->
+        <div class="mhw-active-zone-card" id="mhw-active-zone-card">
+          <div class="mhw-azc-header">
+            <div>
+              <h4 class="mhw-azc-title" id="mhw-active-name">Lakshadweep Archipelago</h4>
+              <span class="mhw-azc-coords" id="mhw-active-coords"><i class="fa-solid fa-location-dot"></i> Arabian Sea · 10.50°N, 72.60°E</span>
+            </div>
+            <span class="mhw-category-badge" id="mhw-active-badge">Cat IV: Extreme MHW</span>
+          </div>
+
+          <div class="mhw-azc-stats">
+            <div class="mhw-azc-stat">
+              <span class="mhw-lbl">Surface SST</span>
+              <strong id="mhw-active-sst">29.40 °C</strong>
+            </div>
+            <div class="mhw-azc-stat">
+              <span class="mhw-lbl">50m Depth Temp</span>
+              <strong id="mhw-active-temp50">28.80 °C</strong>
+            </div>
+            <div class="mhw-azc-stat">
+              <span class="mhw-lbl">Thermal Anomaly</span>
+              <strong id="mhw-active-anomaly" style="color:#ef4444;">+0.90 °C</strong>
+            </div>
+            <div class="mhw-azc-stat">
+              <span class="mhw-lbl">Degree Heating Days</span>
+              <strong id="mhw-active-dhd">6.3 °C·days</strong>
+            </div>
+          </div>
+
+          <!-- Heat Penetration Depth Progress Bar -->
+          <div class="mhw-penetration-block">
+            <div class="mhw-pb-header">
+              <span><i class="fa-solid fa-arrow-down-wide-short"></i> Subsurface Thermal Penetration (<span id="mhw-pb-threshold-label">≥ 28.5°C</span>)</span>
+              <strong id="mhw-active-penetration">80 m deep</strong>
+            </div>
+            <div class="mhw-bar-track">
+              <div class="mhw-bar-fill" id="mhw-active-bar-fill" style="width: 80%; background: #a855f7;"></div>
+            </div>
+          </div>
+
+          <!-- INCOIS Disaster Mitigation Action Advisory -->
+          <div class="mhw-azc-advisory" id="mhw-active-advisory">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            <div>
+              <strong>INCOIS Action Protocol:</strong>
+              <span id="mhw-active-advisory-text">Mass coral bleaching and pelagic fish habitat compression alert. Thermal stress penetrates to 80m deep. Restrict mechanized bottom trawling and activate regional marine protected area rapid response.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reconstructed Vertical Depth Profile (0-1000m) Chart Card -->
+        <div class="mhw-chart-panel">
+          <div class="mcp-header">
+            <div>
+              <span class="mcp-title"><i class="fa-solid fa-chart-area"></i> Vertical Thermal Penetration Profile</span>
+              <span class="mcp-sub">0–1000m Reconstructed Column · Bleaching Zone Highlighted</span>
+            </div>
+            <div class="mcp-toggles">
+              <button class="btn-xs btn-outline active" id="btn-mhw-zoom-200" onclick="setMhwChartDepthZoom(200)">0–200m</button>
+              <button class="btn-xs btn-outline" id="btn-mhw-zoom-1000" onclick="setMhwChartDepthZoom(1000)">Full 1000m</button>
+            </div>
+          </div>
+          <div class="mcp-canvas-wrap">
+            <canvas id="mhwDepthChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Monitored Marine Protected Areas Comparison Grid -->
+    <div class="mhw-zones-header-row">
+      <h4><i class="fa-solid fa-cubes-stacked"></i> Monitored North Indian Ocean Coral Habitat Hotspots</h4>
+      <span class="mzhr-sub"><i class="fa-solid fa-hand-pointer"></i> Click any sanctuary card to inspect vertical profile &amp; telemetry</span>
+    </div>
     <div class="mhw-zones-grid" id="mhw-zones-container">
       <!-- Dynamically populated via JS -->
     </div>
@@ -1286,6 +1402,32 @@
         </div>
       </div>
 
+      <!-- Interactive Climate Scenario Simulator Bar (What-If Analysis) -->
+      <div class="agro-sim-bar">
+        <div class="asb-left">
+          <div class="asb-label-row">
+            <span class="asb-title"><i class="fa-solid fa-sliders"></i> Climate Scenario Simulator ("What-If" Analysis):</span>
+            <span class="agro-sim-badge" id="agro-sim-badge">+0.42 °C · Near-Neutral Baseline</span>
+          </div>
+          <div class="asb-slider-row">
+            <span class="asb-slider-bound">-2.0°C (La Niña)</span>
+            <input type="range" id="agro-sim-slider" min="-2.0" max="3.0" step="0.1" value="0.4" oninput="onAgroSimSlide(this.value)">
+            <span class="asb-slider-bound">+3.0°C (Super El Niño)</span>
+          </div>
+        </div>
+        <div class="asb-right">
+          <span class="asb-presets-lbl">Quick Presets:</span>
+          <div class="asb-presets-group">
+            <button class="btn-xs btn-preset active" id="btn-agro-p-base" onclick="setAgroScenario(0.42, 'Baseline 2024 (+0.42°C)')">Baseline (+0.4°C)</button>
+            <button class="btn-xs btn-preset" id="btn-agro-p-elnino" onclick="setAgroScenario(1.2, 'Moderate El Niño (+1.2°C)')">Mod El Niño (+1.2°C)</button>
+            <button class="btn-xs btn-preset" id="btn-agro-p-super" onclick="setAgroScenario(2.5, 'Super El Niño (+2.5°C)')">Extreme El Niño (+2.5°C)</button>
+            <button class="btn-xs btn-preset" id="btn-agro-p-lanina" onclick="setAgroScenario(-1.2, 'La Niña Active (-1.2°C)')">La Niña (-1.2°C)</button>
+            <button class="btn-xs btn-preset" id="btn-agro-p-iod" onclick="setAgroScenario(1.8, 'Positive IOD (+1.8°C)')">+IOD Event (+1.8°C)</button>
+            <button class="btn-xs btn-outline" onclick="resetAgroScenario()" title="Reset to date default"><i class="fa-solid fa-rotate-left"></i> Reset</button>
+          </div>
+        </div>
+      </div>
+
       <!-- KPI Row (5 Cards) -->
       <div class="agro-kpi-grid">
         <div class="agro-kpi-card" id="agro-kpi-sst">
@@ -1293,7 +1435,7 @@
           <div class="ak-details">
             <span class="ak-lbl">Basin SST Anomaly</span>
             <strong class="ak-val" id="agro-sst-anomaly">+0.42 °C</strong>
-            <span class="ak-sub">vs Climatology</span>
+            <span class="ak-sub" id="agro-sst-sub">vs Climatology</span>
           </div>
         </div>
 
@@ -1302,7 +1444,7 @@
           <div class="ak-details">
             <span class="ak-lbl">Monsoon Onset Shift</span>
             <strong class="ak-val" id="agro-monsoon-shift">−2.3 days</strong>
-            <span class="ak-sub">Pre-monsoon lead time</span>
+            <span class="ak-sub" id="agro-monsoon-sub">Delayed advance</span>
           </div>
         </div>
 
@@ -1320,7 +1462,7 @@
           <div class="ak-details">
             <span class="ak-lbl">Kharif Yield Forecast</span>
             <strong class="ak-val" id="agro-yield">+3.1%</strong>
-            <span class="ak-sub">Projected yield variance</span>
+            <span class="ak-sub" id="agro-yield-sub">Projected yield variance</span>
           </div>
         </div>
 
@@ -1337,6 +1479,45 @@
   </div>
 
   <div class="agro-content-container">
+    <!-- Zone Filter Pills & Detailed Agromet Contingency Dispatch -->
+    <div class="agro-zone-filter-strip">
+      <span class="azf-label"><i class="fa-solid fa-filter"></i> Filter Agricultural Zone:</span>
+      <div class="azf-pills">
+        <button class="azf-btn active" onclick="filterAgroZone('All', this)">All Coastal Zones (6)</button>
+        <button class="azf-btn" onclick="filterAgroZone('Gujarat', this)">Gujarat Coast</button>
+        <button class="azf-btn" onclick="filterAgroZone('Konkan', this)">Konkan &amp; Goa</button>
+        <button class="azf-btn" onclick="filterAgroZone('Kerala', this)">Coastal Karnataka &amp; Kerala</button>
+        <button class="azf-btn" onclick="filterAgroZone('Tamil Nadu', this)">Tamil Nadu Delta</button>
+        <button class="azf-btn" onclick="filterAgroZone('Andhra', this)">Andhra Coastal</button>
+        <button class="azf-btn" onclick="filterAgroZone('Odisha', this)">Odisha &amp; Bengal Delta</button>
+      </div>
+    </div>
+
+    <!-- Active Zone Agromet Contingency Advisory Card -->
+    <div class="agro-zone-advisory-card" id="agro-zone-advisory-card">
+      <div class="azac-header">
+        <div class="azac-title-wrap">
+          <span class="azac-badge" id="azac-region-badge"><i class="fa-solid fa-location-dot"></i> Coastal Agro-Climate Zone</span>
+          <h4 id="azac-zone-name">National Coastal Agro-Climatic Belt (All 6 Zones)</h4>
+        </div>
+        <span class="azac-risk-pill" id="azac-risk-pill">Low Vulnerability</span>
+      </div>
+      <div class="azac-body">
+        <div class="azac-col">
+          <span class="azac-lbl"><i class="fa-solid fa-seedling"></i> Key Kharif Crops:</span>
+          <strong id="azac-crops">Paddy, Groundnut, Cotton, Sugarcane, Coarse Cereals, Pulses</strong>
+        </div>
+        <div class="azac-col">
+          <span class="azac-lbl"><i class="fa-solid fa-calendar-check"></i> Sowing Window Impact:</span>
+          <strong id="azac-sowing">Normal Sowing Window (June 10 – July 5)</strong>
+        </div>
+        <div class="azac-col full-width">
+          <span class="azac-lbl"><i class="fa-solid fa-clipboard-check"></i> ICAR / IMD Agromet Operational Contingency Advisory:</span>
+          <p id="azac-advisory-text">Conditions favorable for regular Kharif sowing. Maintain normal seed-bed preparation for medium-duration paddy cultivars. In rainfed coastal pockets, ensure broadbed furrow irrigation readiness in event of localized monsoon dry spells.</p>
+        </div>
+      </div>
+    </div>
+
     <!-- Charts Row (4 Responsive Cards) -->
     <div class="agro-charts-grid">
       <div class="agro-chart-panel">
@@ -1384,7 +1565,7 @@
     <div class="agro-zone-table-wrap">
       <div class="azt-header">
         <h4><i class="fa-solid fa-table"></i> Regional Agricultural Zone Impact Summary</h4>
-        <span class="azt-sub">Coupled coastal climate forecasting</span>
+        <span class="azt-sub"><i class="fa-solid fa-hand-pointer"></i> Click any table row to view that zone's detailed agromet advisory</span>
       </div>
       <table class="agro-zone-table">
         <thead>
@@ -1403,6 +1584,7 @@
     </div>
   </div>
 </div>
+
 </div><!-- End app-container -->
 
 <!-- Executive Mission Bulletin Modal -->
@@ -1481,6 +1663,6 @@
 </div>
 </div>
 </div>
-<script src="/static/app.js?v=235"></script>
+<script src="/static/app.js?v=250"></script>
 </div></body>
 </html>
