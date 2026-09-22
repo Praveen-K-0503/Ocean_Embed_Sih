@@ -25,14 +25,26 @@ document.addEventListener("DOMContentLoaded", () => {
   const appScreen = document.getElementById("app-screen");
 
   if (isLoggedIn) {
-    if (loginScreen) loginScreen.classList.add("hidden");
-    if (appScreen) appScreen.classList.remove("hidden");
+    if (loginScreen) {
+      loginScreen.classList.add("hidden");
+      loginScreen.style.setProperty("display", "none", "important");
+    }
+    if (appScreen) {
+      appScreen.classList.remove("hidden");
+      appScreen.style.setProperty("display", "block", "important");
+    }
     showPage("home-page");
     loadDates();
     loadMetrics();
   } else {
-    if (loginScreen) loginScreen.classList.remove("hidden");
-    if (appScreen) appScreen.classList.add("hidden");
+    if (loginScreen) {
+      loginScreen.classList.remove("hidden");
+      loginScreen.style.setProperty("display", "flex", "important");
+    }
+    if (appScreen) {
+      appScreen.classList.add("hidden");
+      appScreen.style.setProperty("display", "none", "important");
+    }
   }
 });
 
@@ -221,34 +233,98 @@ function initInteractiveLogin() {
 }
 
 function handleLogin(e) {
-  if (e) e.preventDefault();
+  if (e) {
+    if (typeof e.preventDefault === "function") e.preventDefault();
+    if (typeof e.stopPropagation === "function") e.stopPropagation();
+  }
   sessionStorage.setItem("ocean_logged_in", "true");
   showDashboard();
+  return false;
 }
 
 function handleLogout() {
   sessionStorage.removeItem("ocean_logged_in");
-  document.getElementById("app-screen").classList.add("hidden");
-  document.getElementById("login-screen").classList.remove("hidden");
+  const loginScreen = document.getElementById("login-screen");
+  const appScreen = document.getElementById("app-screen");
+  if (appScreen) {
+    appScreen.classList.add("hidden");
+    appScreen.style.setProperty("display", "none", "important");
+  }
+  if (loginScreen) {
+    loginScreen.classList.remove("hidden");
+    loginScreen.style.setProperty("display", "flex", "important");
+  }
 }
 
 function showDashboard() {
   const loginScreen = document.getElementById("login-screen");
   const appScreen = document.getElementById("app-screen");
-  if (loginScreen) loginScreen.classList.add("hidden");
-  if (appScreen) appScreen.classList.remove("hidden");
+  if (loginScreen) {
+    loginScreen.classList.add("hidden");
+    loginScreen.style.setProperty("display", "none", "important");
+  }
+  if (appScreen) {
+    appScreen.classList.remove("hidden");
+    appScreen.style.setProperty("display", "block", "important");
+  }
   showPage("home-page");
 
-  if (!isMapInitialized) {
-    initMap();
-    initChart();
-    loadDates();
-    loadMetrics();
-    loadArgoValidation(false);
-    isMapInitialized = true;
-  } else {
-    setTimeout(() => { if (map) map.invalidateSize(); }, 200);
+  try {
+    if (!isMapInitialized) {
+      if (typeof initMap === "function") initMap();
+      if (typeof initChart === "function") initChart();
+      if (typeof loadDates === "function") loadDates();
+      if (typeof loadMetrics === "function") loadMetrics();
+      if (typeof loadArgoValidation === "function") loadArgoValidation(false);
+      isMapInitialized = true;
+    } else if (typeof map !== "undefined" && map) {
+      setTimeout(() => { map.invalidateSize(); }, 200);
+    }
+  } catch (err) {
+    console.error("Dashboard initialization notice:", err);
   }
+}
+
+/* Operational Bulletin Modal Controls & Exporters */
+function openExecutiveBulletin() {
+  const modal = document.getElementById("bulletin-modal");
+  if (modal) {
+    modal.classList.remove("hidden");
+    modal.style.display = "flex";
+  }
+}
+
+function closeExecutiveBulletin() {
+  const modal = document.getElementById("bulletin-modal");
+  if (modal) {
+    modal.classList.add("hidden");
+    modal.style.display = "none";
+  }
+}
+
+function exportCSV() {
+  if (currentPrediction) {
+    const depths = currentPrediction.depths || [0, 5, 10, 20, 30, 50, 75, 100, 150, 200, 300, 400, 500, 750, 1000];
+    const temps = currentPrediction.pred_profile_degc || [];
+    let csv = "Depth_m,Predicted_Temperature_degC\n";
+    depths.forEach((d, i) => {
+      csv += `${d},${temps[i] !== undefined ? temps[i] : ""}\n`;
+    });
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `OceanEmbed_Profile_${currentPrediction.date || "2024-06-01"}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } else {
+    window.open(`/api/predict?lat=15.0&lon=65.0&date=2024-06-01`, "_blank");
+  }
+}
+
+function exportData() {
+  exportCSV();
 }
 
 /* Navigation Page Switcher */
@@ -1629,6 +1705,8 @@ let _clientVolume3dCache = {};
 async function renderStudio3D() {
   const container = document.getElementById("plotly-3d-studio-container");
   if (!container) return;
+
+  try {
 
   const studioLat     = parseFloat(document.getElementById("studio-lat")?.value ?? "15.0");
   const studioLon     = parseFloat(document.getElementById("studio-lon")?.value ?? "65.0");

@@ -12,7 +12,7 @@
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
 <!-- Leaflet CSS -->
 <link href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" rel="stylesheet"/>
-<link href="/static/styles.css?v=252" rel="stylesheet"/>
+<link href="/static/styles.css?v=253" rel="stylesheet"/>
 </head>
 <body>
 <!-- Screen 1: Interactive Ocean Login Gateway -->
@@ -69,17 +69,17 @@
 <p class="login-subtitle">Deep OceanEmbedNet 3D Ocean Intelligence</p>
 <p class="cursive-tagline">"Bridging Satellite Surface Data to 1000m Deep Ocean Physics"</p>
 </div>
-<form id="login-form" onsubmit="handleLogin(event)">
+<form id="login-form" onsubmit="handleLogin(event); return false;">
 <div class="input-group">
 <label><i class="fa-solid fa-user"></i> Username / Operator ID</label>
-<input id="login-username" placeholder="Enter username" required="" type="text" value="admin"/>
+<input id="login-username" placeholder="Enter username" required="" type="text" value="admin" onkeydown="if(event.key==='Enter'){handleLogin(event);}"/>
 </div>
 <div class="input-group">
 <label><i class="fa-solid fa-key"></i> Access Key</label>
-<input id="login-password" placeholder="Enter password" required="" type="password" value="••••••••"/>
+<input id="login-password" placeholder="Enter password" required="" type="password" value="••••••••" onkeydown="if(event.key==='Enter'){handleLogin(event);}"/>
 </div>
 <div class="login-actions">
-<button class="btn-login" id="btn-login-interactive" type="submit">
+<button class="btn-login" id="btn-login-interactive" type="button" onclick="handleLogin(event)">
 <span class="btn-text"><i class="fa-solid fa-shield-halved"></i> Launch Platform</span>
 <span class="btn-ripple"></span>
 </button>
@@ -1663,6 +1663,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
-<script src="/static/app.js?v=252"></script>
+<script src="/static/app.js?v=253"></script>
 </div></body>
 </html>
