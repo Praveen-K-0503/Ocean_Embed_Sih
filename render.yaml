@@ -2,7 +2,7 @@ services:
   - type: web
     name: oceanembed-platform
     env: docker
-    plan: standard
+    plan: free
     region: oregon
     dockerfilePath: ./Dockerfile
     healthCheckPath: /api/dates
