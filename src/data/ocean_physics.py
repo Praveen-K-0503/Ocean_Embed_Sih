@@ -17,6 +17,13 @@ from src.config import (
 )
 
 
+def _trapz(y, x):
+    """Compatible trapezoidal integration across NumPy 1.x and 2.x."""
+    if hasattr(np, "trapezoid"):
+        return np.trapezoid(y, x)
+    return np.trapz(y, x)
+
+
 def compute_d20_profile(
     temps: np.ndarray,
     depths: Optional[np.ndarray] = None,
@@ -141,7 +148,7 @@ def compute_tchp_profile(
 
     # Numerical trapezoidal integration: integral (T - 26) dz (in °C * m)
     anomalies = np.maximum(0.0, np.array(sub_t) - t_ref)
-    integral_c_m = float(np.trapz(anomalies, sub_z))
+    integral_c_m = float(_trapz(anomalies, sub_z))
 
     # TCHP in J/m² = rho * cp * integral_c_m
     tchp_j_m2 = rho * cp * integral_c_m
@@ -304,7 +311,7 @@ def compute_physical_diagnostics(
     if np.sum(mask_300) >= 2:
         z_300 = v_depths[mask_300]
         t_300 = v_temps[mask_300]
-        ohc_300_gj_m2 = round(float(RHO_0 * CP * np.trapz(t_300, z_300) * 1e-9), 2)
+        ohc_300_gj_m2 = round(float(RHO_0 * CP * _trapz(t_300, z_300) * 1e-9), 2)
     else:
         ohc_300_gj_m2 = None
 
