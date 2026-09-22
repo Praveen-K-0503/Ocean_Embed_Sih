@@ -192,9 +192,11 @@ class OceanEmbedNet(nn.Module):
         
         # Center the features
         z_centered = z_flat - np.mean(z_flat, axis=0, keepdims=True)
-        # SVD for top 3 components
-        u, s, vt = np.linalg.svd(z_centered, full_matrices=False)
-        pca_proj = u[:, :3] * s[:3]  # (H*W, 3)
+        # Fast covariance eigendecomposition (64x64 covariance instead of 24341x64 SVD)
+        cov = z_centered.T @ z_centered
+        evals, evecs = np.linalg.eigh(cov)
+        idx = np.argsort(evals)[::-1][:3]
+        pca_proj = z_centered @ evecs[:, idx]  # (H*W, 3)
         
         # Normalize each component to [0, 1]
         rgb = np.zeros_like(pca_proj)

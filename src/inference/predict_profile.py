@@ -109,12 +109,14 @@ class OceanEmbedPredictor:
         self._surface_cache: Dict[str, Dict] = {}          # date -> raw 7-channel dict
         self._truth_cache: Dict[str, np.ndarray] = {}      # date -> (15, 101, 241) truth °C
         self._embed_cache: Dict[str, np.ndarray] = {}      # date -> (64, 101, 241)
+        self._latent_result_cache: Dict[str, Dict] = {}    # date -> cached API response dict
 
         # Warm up cache on key representative dates
         warmup_dates = ["2024-06-01", "2024-01-15", "2023-07-15", "2022-06-01"]
         for d in warmup_dates:
             if d in self._date_to_idx:
                 self._compute_or_get_prediction(d)
+                self.get_latent_embeddings(d)
 
         print(
             f"[OK] Predictor ready:\n"
@@ -275,28 +277,6 @@ class OceanEmbedPredictor:
     # Public Inference APIs
     # ─────────────────────────────────────────────────────────────────────────
 
-    def get_latent_embeddings(self, date: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Extract OceanEmbedNet 64-channel latent surface embeddings for the selected date.
-        Returns top-2 principal activation components mapped over the NIO 0.25° grid.
-        """
-        date_str = self._resolve_date(date)
-        _, _, _, z_surf = self._compute_or_get_prediction(date_str)
-
-        c1 = np.where(self.ocean_mask, z_surf[0], np.nan)
-        c2 = np.where(self.ocean_mask, z_surf[1], np.nan)
-
-        c1_list = [[None if math.isnan(float(v)) else round(float(v), 4) for v in row] for row in c1]
-        c2_list = [[None if math.isnan(float(v)) else round(float(v), 4) for v in row] for row in c2]
-
-        return {
-            "status": "success",
-            "date": date_str,
-            "lats": [round(float(lat), 2) for lat in self.lats],
-            "lons": [round(float(lon), 2) for lon in self.lons],
-            "embedding_channel_1": c1_list,
-            "embedding_channel_2": c2_list,
-        }
 
     def predict_profile(
         self,
@@ -663,6 +643,9 @@ class OceanEmbedPredictor:
         Demonstrates representation learning under PS-26066.
         """
         date_str = self._resolve_date(date)
+        if date_str in self._latent_result_cache:
+            return self._latent_result_cache[date_str]
+
         _, _, _, z_surf = self._compute_or_get_prediction(date_str)
 
         z_tensor = torch.from_numpy(z_surf)
@@ -672,7 +655,7 @@ class OceanEmbedPredictor:
         step = 2
         rgb_sub = pca_rgb[:, ::step, ::step]
 
-        return {
+        res = {
             "status": "success",
             "date": date_str,
             "embedding_dim": 64,
@@ -683,6 +666,8 @@ class OceanEmbedPredictor:
             "pca_b": np.where(np.isnan(rgb_sub[2]), None, np.round(rgb_sub[2], 3)).tolist(),
             "description": "Top 3 Principal Components of 64-channel latent satellite embedding."
         }
+        self._latent_result_cache[date_str] = res
+        return res
 
     def get_surface_observations(self, date: Optional[str] = None) -> Dict[str, Any]:
         """Return 7 real surface observation channels for the selected date."""
