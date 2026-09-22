@@ -10,7 +10,5 @@ __pycache__
 .DS_Store
 Thumbs.db
 scratch
-video/*.mp4
-video/*.mov
 outputs/evaluation_results/
 .pytest_cache
